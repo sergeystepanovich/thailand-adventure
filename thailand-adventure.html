@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Операция Таиланд">
+<title>Операция Таиланд</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Nunito:wght@400;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0e1a;font-family:'Nunito',sans-serif;color:#f0f0f0;}
+button{touch-action:manipulation;}
+.screen{touch-action:manipulation;}
+#sGame{touch-action:none;}
+input{touch-action:manipulation;}
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;}
+.screen.active{display:flex;}
+
+/* SAFARI LAUNCH OVERLAY */
+.launch{position:fixed;inset:0;z-index:999;display:none;align-items:center;justify-content:center;padding:1.2rem;background:radial-gradient(ellipse at 50% 0%,rgba(13,33,55,.95),rgba(10,14,26,.98));}
+.launch.on{display:flex;}
+.launch-card{width:100%;max-width:420px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 14px 40px rgba(0,0,0,.45);padding:1rem 1rem .9rem;}
+.launch-title{font-family:'Russo One',sans-serif;font-size:1.15rem;color:#FFD700;text-align:center;margin-bottom:.55rem;letter-spacing:.6px;}
+.launch-desc{font-size:.84rem;line-height:1.55;color:#cde;text-align:left;margin-bottom:.75rem;}
+.launch-steps{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:.75rem .85rem;margin-bottom:.75rem;color:#cde;font-size:.8rem;line-height:1.55;}
+.launch-steps b{color:#FFD700;}
+.launch-row{display:flex;flex-direction:column;gap:.5rem;}
+.launch-mini{font-size:.72rem;color:#9ab;margin-top:.45rem;line-height:1.45;}
+.launch-mini code{background:rgba(255,255,255,.08);padding:.1rem .35rem;border-radius:7px;border:1px solid rgba(255,255,255,.12);color:#fff;}
+
+/* INTRO */
+#sIntro{background:radial-gradient(ellipse at 50% 30%,#0d2137 0%,#0a0e1a 60%,#1a0808 100%);overflow:hidden;}
+.stars{position:absolute;inset:0;pointer-events:none;}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twinkle 2s infinite alternate;}
+@keyframes twinkle{0%{opacity:.15}100%{opacity:1}}
+.fly-plane{position:absolute;top:18%;font-size:2.4rem;animation:fp 7s linear infinite;}
+@keyframes fp{from{left:-8%}to{left:108%}}
+.intro-inner{position:relative;z-index:2;text-align:center;padding:1.5rem 1.8rem;max-width:400px;width:100%;}
+.logo{font-family:'Russo One',sans-serif;font-size:clamp(2rem,10vw,3.2rem);line-height:1.1;background:linear-gradient(135deg,#FFD700,#FF6B00,#FFD700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:lp 2.5s ease-in-out infinite;}
+@keyframes lp{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+.logo-sub{color:#9ac;font-size:.82rem;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:1.3rem;}
+.story-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,215,0,.2);border-radius:16px;padding:.95rem 1rem;margin-bottom:1.2rem;font-size:.83rem;line-height:1.6;color:#cde;text-align:left;}
+.story-card b{color:#FFD700;}
+.mbtn{display:block;width:100%;padding:.88rem;margin-bottom:.55rem;border:none;border-radius:14px;font-family:'Russo One',sans-serif;font-size:.92rem;letter-spacing:1px;cursor:pointer;transition:transform .15s,filter .15s;}
+.mbtn:active{transform:scale(.95);filter:brightness(.85);}
+.mbtn-blue{background:linear-gradient(135deg,#1a6fc4,#0d3d70);color:#fff;box-shadow:0 4px 18px rgba(26,111,196,.5);}
+.mbtn-orange{background:linear-gradient(135deg,#cc7700,#7a3000);color:#fff;box-shadow:0 4px 18px rgba(204,119,0,.45);}
+.mbtn-gray{background:rgba(255,255,255,.1);color:#cde;}
+
+/* INSTALL */
+#sInstall{background:radial-gradient(ellipse at 50% 0%,#0d2137,#0a0e1a);overflow-y:auto;justify-content:flex-start;padding:2rem 1.4rem 1.4rem;}
+.ins-title{font-family:'Russo One',sans-serif;font-size:1.35rem;color:#FFD700;margin-bottom:.9rem;text-align:center;}
+.ins-step{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:.85rem 1rem;margin-bottom:.65rem;font-size:.82rem;line-height:1.65;color:#cde;}
+.ins-step b{color:#FFD700;}
+.num{display:inline-block;width:22px;height:22px;background:#1a6fc4;border-radius:50%;text-align:center;line-height:22px;font-weight:800;margin-right:.4rem;font-size:.72rem;}
+
+/* LOBBY */
+#sLobby{background:radial-gradient(ellipse at 50% 0%,#0d2137,#0a0e1a);padding:1.5rem;text-align:center;}
+.lb-title{font-family:'Russo One',sans-serif;font-size:1.45rem;color:#FFD700;margin-bottom:.5rem;}
+.lb-hint{font-size:.78rem;color:#889;margin-bottom:.9rem;line-height:1.5;}
+.room-inp{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.2);border-radius:12px;padding:.75rem 1rem;color:#fff;font-size:1.2rem;font-family:‘Nunito’,sans-serif;font-weight:800;width:100%;max-width:260px;text-align:center;letter-spacing:4px;outline:none;margin-bottom:.9rem;}
+.lb-slots{display:flex;gap:1rem;justify-content:center;margin-bottom:.9rem;}
+.pslot{background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.2);border-radius:14px;padding:.85rem .75rem;min-width:105px;font-size:.8rem;color:#889;}
+.pslot.on{border-style:solid;border-color:rgba(50,200,80,.4);color:#7fff90;background:rgba(50,200,80,.07);}
+.pslot-ico{font-size:2rem;margin-bottom:.25rem;}
+#lobbyMsg{font-size:.78rem;color:#aad;min-height:1.2rem;margin-top:.4rem;}
+
+/* GAME */
+#sGame{background:#000;}
+#gc{position:absolute;inset:0;display:block;width:100%;height:100%;}
+
+/* HUD */
+.hud-top{position:absolute;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:.42rem .65rem;background:linear-gradient(180deg,rgba(0,0,0,.85) 0%,transparent 100%);pointer-events:none;}
+.hud-ch{display:flex;align-items:center;gap:.32rem;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:.22rem .5rem;}
+.hud-ch-av{font-size:1.25rem;}
+.hud-ch-nm{font-size:.68rem;font-weight:800;color:#fff;}
+.hud-ch-rl{font-size:.56rem;color:#99b;}
+.hud-lvl{font-family:'Russo One',sans-serif;font-size:.76rem;color:#FFD700;background:rgba(0,0,0,.5);border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:.16rem .55rem;}
+.hud-sc{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.15);border-radius:18px;padding:.22rem .5rem;text-align:right;}
+.hud-sc-lb{font-size:.56rem;color:#99b;}
+.hud-sc-vl{font-size:.8rem;font-weight:800;color:#FFD700;}
+
+/* BOTTOM UI */
+.bot-ui{position:absolute;bottom:0;left:0;right:0;z-index:50;}
+.dlg{background:linear-gradient(135deg,rgba(8,14,28,.97),rgba(0,22,50,.97));border-top:2px solid rgba(255,215,0,.35);padding:.7rem .85rem;display:none;}
+.dlg.on{display:block;}
+.dlg-who{font-size:.66rem;font-weight:800;color:#FFD700;text-transform:uppercase;letter-spacing:1px;margin-bottom:.22rem;}
+.dlg-txt{font-size:.82rem;line-height:1.5;color:#e0eaff;}
+.dlg-tap{float:right;font-size:.62rem;color:#FFD700;animation:blink .7s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.ctrl{display:flex;align-items:flex-end;justify-content:space-between;padding:.5rem .65rem .65rem;background:linear-gradient(0deg,rgba(0,0,0,.8) 0%,transparent 100%);}
+.dpad{display:grid;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);gap:2px;}
+.db{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.18);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;touch-action:none;transition:background .1s;}
+.db.held,.db:active{background:rgba(255,255,255,.3);}
+.db-e{background:transparent!important;border:none!important;}
+.abts{display:flex;flex-direction:column;gap:.42rem;}
+.abt{padding:.52rem .95rem;border-radius:11px;border:none;font-family:'Russo One',sans-serif;font-size:.74rem;cursor:pointer;letter-spacing:.4px;min-width:82px;transition:transform .1s;}
+.abt:active{transform:scale(.92);}
+.abt-act{background:linear-gradient(135deg,#1a6fc4,#0a3a6e);color:#fff;box-shadow:0 3px 10px rgba(26,111,196,.4);}
+.abt-inv{background:linear-gradient(135deg,#5a3a8a,#2d1a50);color:#fff;box-shadow:0 3px 10px rgba(90,58,138,.35);}
+
+/* INVENTORY */
+.inv-panel{position:absolute;bottom:0;left:0;right:0;z-index:80;background:linear-gradient(180deg,rgba(5,10,25,.98),rgba(5,10,25,1));border-top:2px solid rgba(255,215,0,.3);padding:.85rem;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);max-height:55vh;overflow-y:auto;}
+.inv-panel.open{transform:translateY(0);}
+.inv-hd{font-family:'Russo One',sans-serif;color:#FFD700;font-size:.88rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;}
+.inv-x{cursor:pointer;font-size:1rem;opacity:.6;}
+.inv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.42rem;}
+.inv-it{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:9px;padding:.48rem .22rem;text-align:center;}
+.inv-it.got{border-color:rgba(255,215,0,.45);background:rgba(255,215,0,.07);}
+.inv-ico{font-size:1.45rem;}
+.inv-nm{font-size:.57rem;line-height:1.2;color:#cde;margin-top:.12rem;}
+
+/* PUZZLE */
+.puz-bg{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.82);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:1rem;}
+.puz-bg.on{display:flex;}
+.puz-box{background:linear-gradient(135deg,rgba(8,18,38,.98),rgba(0,12,30,.98));border:2px solid rgba(255,215,0,.35);border-radius:18px;padding:1.25rem;width:100%;max-width:360px;box-shadow:0 0 32px rgba(255,215,0,.12);}
+.puz-title{font-family:'Russo One',sans-serif;color:#FFD700;font-size:.98rem;text-align:center;margin-bottom:.35rem;}
+.puz-desc{font-size:.78rem;color:#cde;text-align:center;margin-bottom:.85rem;line-height:1.5;}
+.puz-inp{width:100%;padding:.65rem;font-size:1rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;font-family:‘Nunito’,sans-serif;outline:none;text-align:center;margin-bottom:.65rem;}
+.puz-btn{width:100%;padding:.58rem;border:none;border-radius:10px;font-family:'Russo One',sans-serif;font-size:.82rem;cursor:pointer;margin-bottom:.35rem;transition:filter .15s;}
+.puz-btn:active{filter:brightness(.8);}
+.pb-blue{background:linear-gradient(135deg,#1a6fc4,#0d3d70);color:#fff;}
+.pb-orange{background:linear-gradient(135deg,#cc7700,#7a3000);color:#fff;}
+.pb-green{background:linear-gradient(135deg,#1a6c2a,#0d3a14);color:#fff;}
+.puz-opts{display:flex;flex-direction:column;gap:.36rem;margin-bottom:.65rem;}
+.puz-opt{padding:.52rem .65rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:9px;color:#fff;font-size:.78rem;text-align:left;cursor:pointer;transition:background .15s;font-family:‘Nunito’,sans-serif;}
+.puz-opt:active{background:rgba(255,255,255,.18);}
+.puz-opt.ok{background:rgba(50,200,80,.25);border-color:#32c850;pointer-events:none;}
+.puz-opt.no{background:rgba(200,50,50,.25);border-color:#c83232;pointer-events:none;}
+.puz-res{text-align:center;font-size:.78rem;min-height:1.2rem;margin-top:.28rem;}
+.puz-res.ok{color:#7fff90;font-weight:800;}
+.puz-res.err{color:#ff6b6b;}
+
+/* NOTIF */
+.notif{position:fixed;top:62px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:300;background:linear-gradient(135deg,#1a5c2a,#0d3a19);border:1px solid rgba(50,200,80,.4);border-radius:12px;padding:.4rem .95rem;font-size:.76rem;color:#7fff90;font-weight:700;white-space:nowrap;opacity:0;transition:all .28s;pointer-events:none;}
+.notif.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* WIN */
+.lvl-win{position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.78);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;}
+.lvl-win.on{display:flex;}
+.lw-em{font-size:4.2rem;animation:bob .6s infinite alternate;}
+@keyframes bob{from{transform:translateY(0)}to{transform:translateY(-18px)}}
+.lw-title{font-family:'Russo One',sans-serif;font-size:1.7rem;color:#FFD700;margin:.55rem 0 .35rem;}
+.lw-desc{color:#cde;font-size:.83rem;line-height:1.6;margin-bottom:1.2rem;max-width:310px;}
+.lw-btn{padding:.82rem 1.8rem;background:linear-gradient(135deg,#FFD700,#FF6B00);color:#000;border:none;border-radius:14px;font-family:'Russo One',sans-serif;font-size:.92rem;cursor:pointer;}
+</style>
+
+</head>
+<body>
+
+<!-- SAFARI LAUNCH (iPhone / Telegram) -->
+<div class="launch" id="launch">
+  <div class="launch-card">
+    <div class="launch-title">🍎 Запуск на iPhone</div>
+    <div class="launch-desc">
+      В Telegram предпросмотр HTML иногда <b>не исполняет нажатия/скрипты</b>, поэтому игра “открывается”, но кнопки не работают.
+      Запусти этот же файл <b>в Safari</b>.
+    </div>
+    <div class="launch-steps" id="launchSteps"></div>
+    <div class="launch-row">
+      <button class="mbtn mbtn-blue" id="btnOpenSafari">🧭 Открыть в Safari</button>
+      <button class="mbtn mbtn-gray" id="btnShareFile">📤 Поделиться / Сохранить в «Файлы»</button>
+      <button class="mbtn mbtn-gray" id="btnContinueHere">▶︎ Всё равно продолжить тут</button>
+    </div>
+    <div class="launch-mini" id="launchMini"></div>
+  </div>
+</div>
+
+<!-- INTRO -->
+
+<div id="sIntro" class="screen active">
+  <div class="stars" id="starsEl"></div>
+  <div class="fly-plane">✈️</div>
+  <div class="intro-inner">
+    <div class="logo">ОПЕРАЦИЯ<br>ТАИЛАНД</div>
+    <div class="logo-sub">Приключение Сергея и Алексея</div>
+    <div class="story-card">
+      <b>Алексей</b> мечтает улететь в Таиланд — тёплое море, пальмы, свобода!
+      Но сначала нужно собрать все документы, пройти таможню и добраться до пляжа.
+      Его лучший друг <b>Сергей</b> берётся помочь. Помоги им! 🌴
+    </div>
+    <button class="mbtn mbtn-blue" id="btnSolo">🎮 Играть одному</button>
+    <button class="mbtn mbtn-orange" id="btnMulti">👥 Играть вдвоём</button>
+    <button class="mbtn mbtn-gray" id="btnInstall">📱 Установить на iPhone</button>
+  </div>
+</div>
+
+<!-- INSTALL -->
+
+<div id="sInstall" class="screen">
+  <div class="ins-title">📱 Как установить и запустить</div>
+  <div class="ins-step"><b>🍎 iPhone — Safari:</b><br>
+    <span class="num">1</span>Скачай файл игры (.html)<br>
+    <span class="num">2</span>Открой приложение <b>«Файлы»</b>, найди файл<br>
+    <span class="num">3</span>Нажми на файл — откроется в Safari<br>
+    <span class="num">4</span>Нажми кнопку <b>«Поделиться»</b> (квадрат со стрелкой ↑) внизу<br>
+    <span class="num">5</span>Выбери <b>«На экран "Домой"»</b> → <b>«Добавить»</b><br>
+    <span class="num">6</span>Готово! Иконка появится на главном экране 🎮
+  </div>
+  <div class="ins-step"><b>🤖 Android — Chrome:</b><br>
+    <span class="num">1</span>Открой файл в Chrome<br>
+    <span class="num">2</span>Меню (три точки) → <b>«Добавить на главный экран»</b>
+  </div>
+  <div class="ins-step"><b>👥 Играть вдвоём:</b><br>
+    Отправь файл другу через <b>Telegram / AirDrop</b>.
+    Он открывает игру → нажимает «Играть вдвоём» → вводит тот же код комнаты что и ты!
+  </div>
+  <button class="mbtn mbtn-blue" style="max-width:260px;margin-top:.4rem" id="btnBackInstall">← Назад</button>
+</div>
+
+<!-- LOBBY -->
+
+<div id="sLobby" class="screen">
+  <div class="lb-title">🌐 Совместная игра</div>
+  <div class="lb-hint">Создай комнату → отправь код другу<br>Он вводит тот же код и нажимает «Войти»</div>
+  <input type="text" class="room-inp" id="roomInp" placeholder="КОД" maxlength="6">
+  <div class="lb-slots">
+    <div class="pslot on" id="pslot1"><div class="pslot-ico">🧑‍💼</div>Сергей<br><small>Ты</small></div>
+    <div class="pslot" id="pslot2"><div class="pslot-ico">👤</div>Ожидание...</div>
+  </div>
+  <button class="mbtn mbtn-blue" style="max-width:260px" id="btnCreate">🔗 Создать комнату</button>
+  <button class="mbtn mbtn-orange" style="max-width:260px" id="btnJoin">🚪 Войти в комнату</button>
+  <button class="mbtn mbtn-gray" style="max-width:260px" id="btnBackLobby">← Назад</button>
+  <div id="lobbyMsg"></div>
+</div>
+
+<!-- GAME -->
+
+<div id="sGame" class="screen">
+  <canvas id="gc"></canvas>
+  <div class="hud-top">
+    <div class="hud-ch"><div class="hud-ch-av">🧑‍💼</div><div><div class="hud-ch-nm">СЕРГЕЙ</div><div class="hud-ch-rl">Помощник</div></div></div>
+    <div class="hud-lvl" id="hudLvl">🏙️ МОСКВА</div>
+    <div class="hud-sc"><div class="hud-sc-lb">ОЧКИ</div><div class="hud-sc-vl" id="hudScore">0</div></div>
+  </div>
+  <div class="notif" id="notif">✅ Получено!</div>
+  <div class="bot-ui">
+    <div class="dlg" id="dlg">
+      <div class="dlg-who" id="dlgWho">АЛЕКСЕЙ</div>
+      <div class="dlg-txt" id="dlgTxt"></div>
+      <div class="dlg-tap">► нажми</div>
+    </div>
+    <div class="ctrl">
+      <div class="dpad">
+        <div></div><div class="db" id="dU">▲</div><div></div>
+        <div class="db" id="dL">◄</div><div class="db db-e"></div><div class="db" id="dR">►</div>
+        <div></div><div class="db" id="dD">▼</div><div></div>
+      </div>
+      <div class="abts">
+        <button class="abt abt-act" id="btnAct">⚡ ДЕЙСТВИЕ</button>
+        <button class="abt abt-inv" id="btnInv">🎒 РЮКЗАК</button>
+      </div>
+    </div>
+  </div>
+  <div class="inv-panel" id="invPanel">
+    <div class="inv-hd"><span>🎒 Рюкзак Сергея</span><span class="inv-x" id="invX">✕</span></div>
+    <div class="inv-grid" id="invGrid"></div>
+  </div>
+  <div class="puz-bg" id="puzBg">
+    <div class="puz-box">
+      <div class="puz-title" id="puzTitle"></div>
+      <div class="puz-desc" id="puzDesc"></div>
+      <div id="puzContent"></div>
+    </div>
+  </div>
+  <div class="lvl-win" id="lvlWin">
+    <div class="lw-em" id="lwEm">🎉</div>
+    <div class="lw-title" id="lwTitle">Уровень пройден!</div>
+    <div class="lw-desc" id="lwDesc"></div>
+    <button class="lw-btn" id="lwBtn">Дальше →</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────
+function cl(v,a,b){return Math.max(a,Math.min(b,v));}
+function ss(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function el(id){return document.getElementById(id);}
+function isTouchDevice(){return (navigator.maxTouchPoints||0)>0 || 'ontouchstart' in window;}
+function bindTap(target, handler){
+  if(!target) return;
+  const run=(ev)=>{
+    if(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    handler();
+  };
+  target.addEventListener('pointerdown',run,{passive:false});
+  target.addEventListener('touchstart',run,{passive:false});
+  target.addEventListener('click',run,{passive:false});
+}
+function isTelegramWebView(){
+  const ua=String(navigator.userAgent||'');
+  return /Telegram/i.test(ua) || /TelegramWebView/i.test(ua);
+}
+function isSafariBrowser(){
+  const ua=String(navigator.userAgent||'');
+  const hasSafari=/Safari/i.test(ua);
+  const isNotChrome=/CriOS|Chrome/i.test(ua)===false;
+  const isNotFirefox=/FxiOS/i.test(ua)===false;
+  return hasSafari && isNotChrome && isNotFirefox;
+}
+function isIphone(){
+  const ua=String(navigator.userAgent||'');
+  return /iPhone/i.test(ua) || ((navigator.platform||'')==='iPhone');
+}
+function hideLaunch(){
+  el('launch').classList.remove('on');
+}
+function showLaunch(){
+  el('launch').classList.add('on');
+}
+async function executeOpenInSafari(){
+  const url=String(location.href||'');
+  try{
+    if(navigator.share){
+      await navigator.share({title:'Операция Таиланд',text:'Открой в Safari',url});
+      return;
+    }
+  }catch(err){}
+  try{window.open(url,'_blank','noopener,noreferrer');}catch(err){}
+  try{location.href=url;}catch(err){}
+}
+function renderLaunchInstructions(){
+  const steps=el('launchSteps');
+  const mini=el('launchMini');
+  const isFile=urlIsFileProtocol();
+  const title=isFile?'Файл открыт как <b>локальный</b>':'Страница открыта как <b>ссылка</b>';
+  const stepA=isFile
+    ? '1) Нажми <b>📤 Поделиться</b> → <b>Сохранить в «Файлы»</b>'
+    : '1) Нажми <b>🧭 Открыть в Safari</b> (или открой ссылку в Safari)';
+  const stepB='2) Открой «Файлы» → найди <b>thailand-adventure.html</b>';
+  const stepC='3) Тап по файлу → внизу <b>Поделиться</b> → <b>Открыть в Safari</b>';
+  const stepD='4) (Опционально) <b>На экран “Домой”</b> для удобного запуска';
+  steps.innerHTML=`${title}<br><br>${stepA}<br>${stepB}<br>${stepC}<br>${stepD}`;
+  const short=`<code>${(location.href||'').slice(0,60)}${(location.href||'').length>60?'…':''}</code>`;
+  mini.innerHTML=`Если Telegram не даёт “Открыть в Safari”, сделай через «Файлы». Текущий адрес: ${short}`;
+}
+function urlIsFileProtocol(){
+  return String(location.protocol||'')==='file:';
+}
+
+// ─────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────
+const CAT=[
+  {id:'passport',icon:'📘',name:'Загранпаспорт'},
+  {id:'ticket',icon:'🎫',name:'Авиабилет'},
+  {id:'money',icon:'💰',name:'Деньги'},
+  {id:'vaccine',icon:'💉',name:'Мед. справка'},
+  {id:'phone',icon:'📱',name:'Тел. СИМ'},
+  {id:'phone_sim',icon:'📡',name:'SIM-карта'},
+  {id:'customs',icon:'🛄',name:'Таможня'},
+  {id:'exchange',icon:'💵',name:'Обменяно'},
+  {id:'tuktuk',icon:'🛺',name:'Тук-тук'},
+  {id:'hotel_key',icon:'🗝️',name:'Ключ от отеля'},
+  {id:'map',icon:'🗺️',name:'Карта города'},
+  {id:'boat_ticket',icon:'🚤',name:'Билет на катер'},
+  {id:'sunscreen',icon:'🧴',name:'Солнцезащита'},
+  {id:'amulet',icon:'🧿',name:'Амулет храма'},
+  {id:'snorkel',icon:'🤿',name:'Маска для снорклинга'},
+  {id:'fireworks',icon:'🎇',name:'Фейерверк'},
+];
+
+const LVL=[
+  {
+    name:'🏙️ МОСКВА', bg:'r',
+    intro:[
+      {who:'АЛЕКСЕЙ',txt:'Серёга! Хочу в Таиланд, но не знаю с чего начать...'},
+      {who:'СЕРГЕЙ',txt:'Не волнуйся! Сначала загранпаспорт — идём в МФЦ!'},
+      {who:'АЛЕКСЕЙ',txt:'Ещё нужны деньги, справка и билет. Давай всё соберём!'},
+    ],
+    objs:[
+      {rx:.55,ry:.38,em:'🏛️',lb:'МФЦ',id:'mfc',ac:'puz_passport'},
+      {rx:.22,ry:.55,em:'💰',lb:'Кошелёк',id:'wallet',ac:'get_money'},
+      {rx:.75,ry:.52,em:'💊',lb:'Поликлиника',id:'clinic',ac:'puz_vaccine'},
+      {rx:.15,ry:.40,em:'🎟️',lb:'Авиакасса',id:'kassa',ac:'puz_ticket'},
+    ],
+    need:['passport','money','vaccine','ticket'],
+    we:'🛫',wt:'Вылет через 3 часа!',wd:'Документы собраны! Лёха готов к вылету. Сергей летит вместе!'
+  },
+  {
+    name:'✈️ АЭРОПОРТ', bg:'a',
+    intro:[
+      {who:'СЕРГЕЙ',txt:'Мы в Шереметьево! Нужно пройти таможню.'},
+      {who:'АЛЕКСЕЙ',txt:'Телефон сел! Не помню выход на посадку...'},
+      {who:'СЕРГЕЙ',txt:'Найдём зарядку и спросим охранника!'},
+    ],
+    objs:[
+      {rx:.35,ry:.42,em:'🔌',lb:'Зарядка',id:'chrg',ac:'get_phone'},
+      {rx:.65,ry:.55,em:'👮',lb:'Охранник',id:'guard',ac:'dlg_guard'},
+      {rx:.20,ry:.58,em:'🛄',lb:'Таможня',id:'cust',ac:'puz_customs'},
+      {rx:.78,ry:.38,em:'☕',lb:'Кафе',id:'cafe',ac:'dlg_cafe'},
+    ],
+    need:['phone','customs'],
+    we:'🛬',wt:'Взлетаем!',wd:'Таможня пройдена! 8 часов и мы в Бангкоке!'
+  },
+  {
+    name:'🌴 БАНГКОК', bg:'t',
+    intro:[
+      {who:'АЛЕКСЕЙ',txt:'БАНГКОК!! Серёга, это невероятно! 🌴'},
+      {who:'СЕРГЕЙ',txt:'Поменяем деньги, купим симку и найдём тук-тук!'},
+      {who:'АЛЕКСЕЙ',txt:'Скорее на пляж!!!'},
+    ],
+    objs:[
+      {rx:.30,ry:.45,em:'🏦',lb:'Обменник',id:'exch',ac:'puz_exchange'},
+      {rx:.65,ry:.38,em:'📡',lb:'SIM-карта',id:'sim',ac:'get_phone_sim'},
+      {rx:.50,ry:.60,em:'🙏',lb:'Местный',id:'lcl',ac:'dlg_local'},
+      {rx:.18,ry:.55,em:'🛺',lb:'Тук-тук',id:'ttuk',ac:'puz_tuktuk'},
+      {rx:.82,ry:.48,em:'🌅',lb:'Пляж!',id:'beach',ac:'dlg_beach'},
+    ],
+    need:['exchange','phone_sim','tuktuk'],
+    we:'🏆',wt:'МЕЧТА СБЫЛАСЬ!',wd:'Алексей на пляже Паттайи! Пальмы, море, закат. Сергей рядом — лучший друг сдержал слово! 🌴🌊😎'
+  },
+  {
+    name:'🌃 НОЧНОЙ РЫНОК', bg:'t',
+    intro:[
+      {who:'АЛЕКСЕЙ',txt:'Серёга, давай на ночной рынок! Там всё яркое и вкусное!'},
+      {who:'СЕРГЕЙ',txt:'Ок, но сначала найдём карту и ключ от отеля. Иначе потеряемся.'},
+      {who:'АЛЕКСЕЙ',txt:'И обязательно купим солнцезащиту — завтра пляж!'},
+    ],
+    objs:[
+      {rx:.22,ry:.52,em:'🗺️',lb:'Киоск',id:'kiosk',ac:'puz_map'},
+      {rx:.60,ry:.42,em:'🏨',lb:'Ресепшн',id:'hotel',ac:'puz_hotel_key'},
+      {rx:.78,ry:.58,em:'🧴',lb:'Аптека',id:'pharm',ac:'puz_sunscreen'},
+      {rx:.42,ry:.62,em:'🍜',lb:'Лапша',id:'nood',ac:'dlg_noodles'},
+    ],
+    need:['map','hotel_key','sunscreen'],
+    we:'🌟',wt:'НОЧЬ УДАЛАСЬ!',wd:'Отель найден, ключ у тебя, карта в кармане. Завтра — острова и море!'
+  },
+  {
+    name:'🚤 ПИРС И ОСТРОВА', bg:'t',
+    intro:[
+      {who:'СЕРГЕЙ',txt:'На пирсе толпа. Нужно купить билет на катер и не попасться на развод.'},
+      {who:'АЛЕКСЕЙ',txt:'Я хочу на острова! И маску для снорклинга!'},
+    ],
+    objs:[
+      {rx:.25,ry:.45,em:'🎟️',lb:'Касса',id:'pier_kassa',ac:'puz_boat_ticket'},
+      {rx:.65,ry:.52,em:'🤿',lb:'Лавка',id:'gear',ac:'puz_snorkel'},
+      {rx:.50,ry:.38,em:'🧑‍✈️',lb:'Капитан',id:'cap',ac:'dlg_captain'},
+      {rx:.82,ry:.60,em:'🌊',lb:'Причал',id:'pier',ac:'dlg_pier'},
+    ],
+    need:['boat_ticket','snorkel'],
+    we:'🚤',wt:'ВЫХОД В МОРЕ!',wd:'Катер ждёт. Волны, солнце и острова — впереди!'
+  },
+  {
+    name:'🛕 ДЖУНГЛИ И ХРАМ', bg:'t',
+    intro:[
+      {who:'АЛЕКСЕЙ',txt:'Серёга, тут тропа в джунгли... и древний храм!'},
+      {who:'СЕРГЕЙ',txt:'Берём амулет на удачу и возвращаемся к воде до темноты.'},
+    ],
+    objs:[
+      {rx:.32,ry:.58,em:'🛕',lb:'Храм',id:'temple',ac:'puz_amulet'},
+      {rx:.70,ry:.42,em:'🐒',lb:'Обезьяна',id:'monkey',ac:'dlg_monkey'},
+      {rx:.18,ry:.46,em:'🌿',lb:'Тропа',id:'trail',ac:'dlg_trail'},
+      {rx:.82,ry:.54,em:'🏖️',lb:'Выход к пляжу',id:'exit',ac:'dlg_exit'},
+    ],
+    need:['amulet'],
+    we:'🧿',wt:'УДАЧА В КАРМАНЕ!',wd:'Амулет найден. Пора на финальный пляжный закат!'
+  },
+  {
+    name:'🎆 ФИНАЛ: ПЛЯЖНАЯ НОЧЬ', bg:'t',
+    intro:[
+      {who:'АЛЕКСЕЙ',txt:'Мы на месте. Солнце село... но ночь только начинается!'},
+      {who:'СЕРГЕЙ',txt:'Соберём всё — и празднуем. Ты добрался до мечты.'},
+    ],
+    objs:[
+      {rx:.25,ry:.60,em:'🔥',lb:'Костёр',id:'fire',ac:'dlg_fire'},
+      {rx:.55,ry:.48,em:'🎇',lb:'Фейерверк',id:'fw',ac:'puz_fireworks'},
+      {rx:.78,ry:.60,em:'🥥',lb:'Кокос',id:'coco',ac:'get_money'},
+      {rx:.60,ry:.66,em:'🌅',lb:'Закат',id:'sunset',ac:'dlg_beach'},
+    ],
+    need:['fireworks'],
+    we:'🏝️',wt:'ТАИЛАНД ПРОЙДЕН!',wd:'Ты прошёл насыщенное путешествие: документы, аэропорт, город, острова, храм и финальный пляж. Красиво, ярко и по-настоящему!'
+  }
+];
+
+const PUZ={
+  passport:{
+    title:'📘 МФЦ: Оформление загранпаспорта',
+    desc:'Ответь на вопросы оператора!',
+    type:'quiz',
+    qs:[
+      {q:'Что нужно для получения загранпаспорта?',opts:['Водительские права','Паспорт РФ','Студ. билет','ИНН'],ans:1},
+      {q:'Срок действия биометрического загранпаспорта?',opts:['5 лет','10 лет','3 года','Бессрочно'],ans:1},
+    ],
+    rw:{objId:'mfc',itemId:'passport',icon:'📘',name:'Загранпаспорт'}
+  },
+  vaccine:{
+    title:'💉 Поликлиника: Найди папку',
+    desc:'В архиве 8 папок. Найди нужную!',
+    type:'find',
+    items:['📁','📋','📁','📂','📁','📋','📂','📁'],
+    tgt:3,
+    rw:{objId:'clinic',itemId:'vaccine',icon:'💉',name:'Мед. справка'}
+  },
+  ticket:{
+    title:'🎫 Авиакасса: Купи билет',
+    desc:'Расставь шаги в правильный порядок',
+    type:'order',
+    steps:['Выбрать дату','Ввести паспорт','Оплатить','Получить билет'],
+    rw:{objId:'kassa',itemId:'ticket',icon:'🎫',name:'Авиабилет'}
+  },
+  customs:{
+    title:'🛄 Таможня: Открой замок',
+    desc:'Введи 3-значный код. Сумма цифр = 9',
+    type:'code',
+    hint:'Пример: 1+3+5=9 → код "135"',
+    sols:['126','135','234','333','144','225','117','216','153','315','531','513'],
+    rw:{objId:'cust',itemId:'customs',icon:'🛄',name:'Таможня пройдена'}
+  },
+  exchange:{
+    title:'🏦 Обменник: Курс валюты',
+    desc:'1₽ = 0.36฿. Алексею нужно 5000฿. Сколько рублей? (±500)',
+    type:'math',
+    correct:13889,tol:500,
+    rw:{objId:'exch',itemId:'exchange',icon:'💵',name:'Обменяно'}
+  },
+  tuktuk:{
+    title:'🛺 Тук-тук: Поторгуйся!',
+    desc:'Сбей цену с 500฿ до 150฿ или ниже',
+    type:'bargain',
+    sp:500,tgt:150,
+    rw:{objId:'ttuk',itemId:'tuktuk',icon:'🛺',name:'Тук-тук нанят'}
+  },
+  map:{
+    title:'🗺️ Киоск: Сложи маршрут',
+    desc:'Выбери правильный маршрут до отеля (не в джунгли).',
+    type:'quiz',
+    qs:[
+      {q:'Какой ориентир логичнее искать первым?',opts:['Водопад','Ближайшая BTS-станция','Слоновий заповедник','Рисовые поля'],ans:1},
+      {q:'Что надёжнее для навигации в городе?',opts:['Случайные советы прохожих','Карта + названия улиц/станций','Звёзды','Интуиция'],ans:1},
+    ],
+    rw:{objId:'kiosk',itemId:'map',icon:'🗺️',name:'Карта города'}
+  },
+  hotel_key:{
+    title:'🏨 Ресепшн: Подтверди бронь',
+    desc:'Расставь шаги заселения в правильный порядок (тапай элементы).',
+    type:'order',
+    steps:['Назвать фамилию','Показать паспорт','Внести депозит','Получить ключ'],
+    rw:{objId:'hotel',itemId:'hotel_key',icon:'🗝️',name:'Ключ от отеля'}
+  },
+  sunscreen:{
+    title:'🧴 Аптека: Быстрый расчёт',
+    desc:'Солнцезащита SPF50 стоит 420฿. На кассе дают скидку 15%. Сколько платить?',
+    type:'math',
+    correct:357,tol:8,
+    rw:{objId:'pharm',itemId:'sunscreen',icon:'🧴',name:'Солнцезащита куплена'}
+  },
+  boat_ticket:{
+    title:'🚤 Касса: Билет на катер',
+    desc:'Введи код причала (сумма цифр = 12).',
+    type:'code',
+    hint:'Любой 3-значный код, где сумма цифр = 12',
+    sols:['345','444','543','156','165','264','426','624','462','237','273','732','327','723','318','381','813','831','930','903','390','309'],
+    rw:{objId:'pier_kassa',itemId:'boat_ticket',icon:'🚤',name:'Билет на катер'}
+  },
+  snorkel:{
+    title:'🤿 Лавка: Найди маску',
+    desc:'Среди снаряжения выбери правильную маску (не папку и не планшет).',
+    type:'find',
+    items:['📁','🤿','📋','📂','📁','📋','📂','📁'],
+    tgt:1,
+    rw:{objId:'gear',itemId:'snorkel',icon:'🤿',name:'Маска для снорклинга'}
+  },
+  amulet:{
+    title:'🛕 Храм: Испытание',
+    desc:'Ответь на вопросы монаха — спокойно и честно.',
+    type:'quiz',
+    qs:[
+      {q:'Зачем путешественнику терпение?',opts:['Чтобы спорить','Чтобы не паниковать','Чтобы опаздывать','Чтобы молчать всегда'],ans:1},
+      {q:'Что важнее в дороге?',opts:['Лайки','План + гибкость','Погода','Слухи'],ans:1},
+    ],
+    rw:{objId:'temple',itemId:'amulet',icon:'🧿',name:'Амулет храма'}
+  },
+  fireworks:{
+    title:'🎇 Фейерверк: Сборка',
+    desc:'Расставь шаги безопасного запуска (тапай элементы).',
+    type:'order',
+    steps:['Отойти на расстояние','Поставить на ровную поверхность','Поджечь фитиль','Проверить, что рядом нет людей'],
+    rw:{objId:'fw',itemId:'fireworks',icon:'🎇',name:'Фейерверк готов'}
+  }
+};
+
+const DLGS={
+  guard:[{who:'ОХРАННИК',txt:'Выход Б-12, второй этаж, налево. 40 минут до посадки!'},{who:'СЕРГЕЙ',txt:'Лёха, бегом! Выход Б-12!'}],
+  cafe:[{who:'БАРИСТА',txt:'Кофе перед вылетом?'},{who:'АЛЕКСЕЙ',txt:'Двойной эспрессо! В Таиланд лечу!'}],
+  local:[{who:'МЕСТНЫЙ',txt:'Сава́дди кха! Отель — Grand Palace, 15 минут!'},{who:'АЛЕКСЕЙ',txt:'Серёга, я уже вижу пальмы!'}],
+  beach:[{who:'АЛЕКСЕЙ',txt:'...Серёга. Смотри на это море. Мы сделали это.'},{who:'СЕРГЕЙ',txt:'Сделали, брат. Это мы заслужили 😎'},{who:'АЛЕКСЕЙ',txt:'Ты лучший друг на свете! Спасибо!'}],
+  noodles:[{who:'ПОВАР',txt:'Острый том ям? Или помягче?'},{who:'АЛЕКСЕЙ',txt:'Острый! Я сегодня герой приключения!'}],
+  captain:[{who:'КАПИТАН',txt:'Садимся по билетам. Держитесь крепче — море сегодня бодрое!'}, {who:'СЕРГЕЙ',txt:'Лёха, маску не потеряй, она ещё пригодится.'}],
+  pier:[{who:'АЛЕКСЕЙ',txt:'Смотри, вода как стекло... хочу нырять прямо сейчас!'}, {who:'СЕРГЕЙ',txt:'Сначала билет и безопасность. Потом — свобода.'}],
+  monkey:[{who:'ОБЕЗЬЯНА',txt:'У-у-у! (пытается стащить что-то блестящее)'}, {who:'СЕРГЕЙ',txt:'Не трогай рюкзак! Лёха, держи дистанцию.'}],
+  trail:[{who:'СЕРГЕЙ',txt:'Джунгли красивы, но не забывай: вода и путь обратно — важнее лайфхаков.'}],
+  exit:[{who:'АЛЕКСЕЙ',txt:'Я слышу море! Пляж рядом!'}, {who:'СЕРГЕЙ',txt:'Отлично. Финал будет красивым.'}],
+  fire:[{who:'АЛЕКСЕЙ',txt:'Костёр, кокос и море. Вот оно, счастье.'}, {who:'СЕРГЕЙ',txt:'Сейчас сделаем финальный салют — и победа.'}],
+};
+
+// ─────────────────────────────────────────────────────────
+// GAME ENGINE
+// ─────────────────────────────────────────────────────────
+let canvas, ctx, W=0, H=0;
+let raf=0;
+let lvl=0, score=0, items={};
+let px=0,py=0,ax=0,ay=0;
+let dp={u:0,d:0,l:0,r:0};
+let dlgQ=[];
+let parts=[];
+let clouds=[];
+let activePuz=null;
+let qStep=0;
+let oArr=[];
+let orderPickIndex=null;
+let bPrice=500;
+let dragI=null;
+let gameRunning=false;
+
+function initEngine(){
+  canvas=el('gc');
+  ctx=canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize',resizeCanvas);
+  bindControls();
+}
+
+function resizeCanvas(){
+  if(!canvas) return;
+  const dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1));
+  const cssW=canvas.offsetWidth||window.innerWidth;
+  const cssH=canvas.offsetHeight||window.innerHeight;
+  canvas.width=Math.floor(cssW*dpr);
+  canvas.height=Math.floor(cssH*dpr);
+  canvas.style.width=`${cssW}px`;
+  canvas.style.height=`${cssH}px`;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=cssW;
+  H=cssH;
+}
+
+function startGame(){
+  if(!canvas) initEngine();
+  resizeCanvas();
+  lvl=0; score=0; items={};
+  ss('sGame');
+  // Wait one frame for layout
+  requestAnimationFrame(()=>{
+    resizeCanvas();
+    loadLevel();
+    if(raf) cancelAnimationFrame(raf);
+    gameRunning=true;
+    raf=requestAnimationFrame(loop);
+  });
+}
+
+function loadLevel(){
+  const lv=LVL[lvl];
+  el('hudLvl').textContent=lv.name;
+  el('hudScore').textContent=score;
+  resizeCanvas();
+  px=W*.14; py=H*.5;
+  ax=W*.22; ay=H*.5+25;
+  parts=[];
+  clouds=[];
+  for(let i=0;i<5;i++) clouds.push({x:Math.random()*W,y:18+Math.random()*65,spd:.35+Math.random()*.3,w:65+Math.random()*85});
+  el('lvlWin').classList.remove('on');
+  el('puzBg').classList.remove('on');
+  el('dlg').classList.remove('on');
+  el('invPanel').classList.remove('open');
+  dlgQ=[...lv.intro];
+  setTimeout(showNextDlg,400);
+  updateInv();
+}
+
+function loop(){
+  if(!gameRunning){raf=requestAnimationFrame(loop);return;}
+  raf=requestAnimationFrame(loop);
+  update();
+  draw();
+}
+
+function update(){
+  if(!W||!H) return;
+  const spd=2.5;
+  let dx=dp.r-dp.l, dy=dp.d-dp.u;
+  const botH=155;
+  px=cl(px+dx*spd,16,W-16);
+  py=cl(py+dy*spd,62,H-botH-16);
+  ax+=(px+42-ax)*.065; ay+=(py+8-ay)*.065;
+  clouds.forEach(c=>{c.x+=c.spd;if(c.x>W+110)c.x=-110;});
+  parts=parts.filter(p=>p.life>0);
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.05;p.life--;p.a=p.life/p.ml;});
+}
+
+// ─────────────────────────────────────────────────────────
+// DRAW
+// ─────────────────────────────────────────────────────────
+function draw(){
+  if(!ctx||!W||!H) return;
+  ctx.clearRect(0,0,W,H);
+  const bg=LVL[lvl].bg;
+  if(bg==='r') drawRussia();
+  else if(bg==='a') drawAirport();
+  else drawThailand();
+  drawClouds();
+  drawObjs();
+  drawChar(ax,ay,'Алексей','🧔');
+  drawChar(px,py,'Сергей','🧑‍💼',true);
+  drawParts();
+}
+
+function drawRussia(){
+  // Sky
+  let sk=ctx.createLinearGradient(0,0,0,H*.62);
+  sk.addColorStop(0,'#1a3560');sk.addColorStop(1,'#4a7ab0');
+  ctx.fillStyle=sk;ctx.fillRect(0,0,W,H*.62);
+  // Ground
+  let gr=ctx.createLinearGradient(0,H*.62,0,H);
+  gr.addColorStop(0,'#ddeedd');gr.addColorStop(1,'#7a9a7a');
+  ctx.fillStyle=gr;ctx.fillRect(0,H*.62,W,H*.38);
+  // Road
+  ctx.fillStyle='#444';ctx.fillRect(0,H*.67,W,30);
+  ctx.setLineDash([26,16]);ctx.strokeStyle='rgba(255,255,200,.5)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(0,H*.67+15);ctx.lineTo(W,H*.67+15);ctx.stroke();ctx.setLineDash([]);
+  // Buildings
+  const bw=W/6;
+  [{h:.26,c:'#5a6a7a'},{h:.20,c:'#6a7a8a'},{h:.30,c:'#4a5a6a'},{h:.18,c:'#7a8a9a'},{h:.24,c:'#3a4a5a'},{h:.22,c:'#8a9aaa'}]
+  .forEach((b,i)=>{
+    const bx=i*bw,by=H*.62-H*b.h,bh2=H*b.h;
+    ctx.fillStyle=b.c;ctx.fillRect(bx,by,bw-5,bh2);
+    ctx.fillStyle='rgba(255,255,140,.4)';
+    for(let wy=by+10;wy<H*.62-8;wy+=15) for(let wx=bx+7;wx<bx+bw-12;wx+=13) ctx.fillRect(wx,wy,6,8);
+    if(i%2===0){ctx.fillStyle='#b0b8c8';ctx.beginPath();ctx.arc(bx+bw/2,by,12,0,Math.PI*2);ctx.fill();}
+  });
+  // Snow
+  ctx.fillStyle='rgba(255,255,255,.38)';
+  for(let i=0;i<8;i++){ctx.beginPath();ctx.ellipse(i*(W/8)+22,H*.63,34,8,0,0,Math.PI*2);ctx.fill();}
+  // Trees
+  pineT(W*.1,H*.62,34);pineT(W*.88,H*.62,40);pineT(W*.82,H*.62,28);
+}
+
+function drawAirport(){
+  let sk=ctx.createLinearGradient(0,0,0,H);
+  sk.addColorStop(0,'#1a2545');sk.addColorStop(.5,'#2a3560');sk.addColorStop(1,'#444');
+  ctx.fillStyle=sk;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#333';ctx.fillRect(0,H*.72,W,H*.28);
+  ctx.setLineDash([36,20]);ctx.strokeStyle='rgba(255,255,0,.48)';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(0,H*.86);ctx.lineTo(W,H*.86);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#9aa2b0';ctx.fillRect(W*.03,H*.3,W*.94,H*.38);
+  ctx.fillStyle='rgba(120,180,255,.22)';
+  for(let i=0;i<8;i++) ctx.fillRect(W*.05+i*(W*.105),H*.32,W*.075,H*.24);
+  ctx.fillStyle='#667';ctx.fillRect(W*.3,H*.58,W*.4,H*.1);
+  const fs2=cl(W/30,11,14);
+  ctx.fillStyle='#fff';ctx.font=`bold ${fs2}px Nunito`;ctx.textAlign='center';
+  ctx.fillText('ШЕРЕМЕТЬЕВО',W*.5,H*.42);ctx.textAlign='left';
+  const pt=(Date.now()/3200)%1;
+  const pfs=cl(W/13,26,42);
+  ctx.font=`${pfs}px Arial`;ctx.textAlign='center';
+  ctx.fillText('✈️',pt*W,H*.23);ctx.textAlign='left';
+}
+
+function drawThailand(){
+  const t=Date.now()/1000;
+  let sk=ctx.createLinearGradient(0,0,0,H*.58);
+  sk.addColorStop(0,'#1a3a7a');sk.addColorStop(.35,'#4488cc');sk.addColorStop(.7,'#ff9820');sk.addColorStop(1,'#ff5e18');
+  ctx.fillStyle=sk;ctx.fillRect(0,0,W,H*.58);
+  drawSun(W*.82,H*.1,cl(W/14,22,36));
+  let oc=ctx.createLinearGradient(0,H*.58,0,H*.82);
+  oc.addColorStop(0,'#1a88cc');oc.addColorStop(1,'#005580');
+  ctx.fillStyle=oc;ctx.fillRect(0,H*.58,W,H*.24);
+  ctx.lineWidth=2;
+  for(let i=0;i<3;i++){
+    ctx.strokeStyle=`rgba(255,255,255,${.18+i*.07})`;
+    ctx.beginPath();ctx.moveTo(0,H*(.61+i*.045)+Math.sin(t*1.4)*4);
+    for(let x=0;x<W;x+=18) ctx.lineTo(x,H*(.61+i*.045)+Math.sin((x/W*4+t)*Math.PI)*5);
+    ctx.stroke();
+  }
+  let snd=ctx.createLinearGradient(0,H*.8,0,H);
+  snd.addColorStop(0,'#f5dcab');snd.addColorStop(1,'#d9ad70');
+  ctx.fillStyle=snd;ctx.fillRect(0,H*.8,W,H*.2);
+  drawPalm(W*.07,H*.78,cl(H*.12,52,88));
+  drawPalm(W*.78,H*.76,cl(H*.14,58,92));
+  drawPalm(W*.92,H*.80,cl(H*.1,42,68));
+  drawTemple(W*.37,H*.57);
+}
+
+function pineT(x,by,s){
+  ctx.fillStyle='#2a5a2a';ctx.beginPath();ctx.moveTo(x,by-s);ctx.lineTo(x-s*.38,by);ctx.lineTo(x+s*.38,by);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#1a3a1a';ctx.beginPath();ctx.moveTo(x,by-s*.62);ctx.lineTo(x-s*.48,by-.5);ctx.lineTo(x+s*.48,by-.5);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#5a3010';ctx.fillRect(x-3.5,by,6.5,13);
+}
+function drawPalm(x,by,s){
+  const t=Date.now()/1600;
+  ctx.strokeStyle='#8B6610';ctx.lineWidth=7;ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(x,by);ctx.quadraticCurveTo(x+16,by-s*.5,x+10,by-s);ctx.stroke();
+  const lx=x+10,ly=by-s;
+  ['#2d7a2d','#1a5a1a','#3a8a3a','#4a9a4a'].forEach((c,i)=>{
+    const a=i*(Math.PI/3)+Math.sin(t+i)*.14;
+    ctx.strokeStyle=c;ctx.lineWidth=3.5;
+    ctx.beginPath();ctx.moveTo(lx,ly);
+    ctx.quadraticCurveTo(lx+Math.cos(a)*s*.44,ly+Math.sin(a)*s*.27,lx+Math.cos(a)*s*.76,ly+Math.sin(a)*s*.46);
+    ctx.stroke();
+  });
+  ctx.fillStyle='#8B4510';
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(lx+Math.cos(i*1.2)*7,ly+Math.sin(i*1.2)*7+4,4,0,Math.PI*2);ctx.fill();}
+}
+function drawSun(x,y,r){
+  const t=Date.now()/1000;
+  let g=ctx.createRadialGradient(x,y,r*.4,x,y,r*3.2);
+  g.addColorStop(0,'rgba(255,200,50,.62)');g.addColorStop(1,'rgba(255,130,0,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*3.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#FFD700';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='rgba(255,210,50,.38)';ctx.lineWidth=2;
+  for(let i=0;i<8;i++){const a=i*(Math.PI/4)+t*.3;ctx.beginPath();ctx.moveTo(x+Math.cos(a)*(r+4),y+Math.sin(a)*(r+4));ctx.lineTo(x+Math.cos(a)*(r+15),y+Math.sin(a)*(r+15));ctx.stroke();}
+}
+function drawTemple(x,by){
+  ctx.fillStyle='rgba(95,65,12,.5)';ctx.fillRect(x,by-48,65,48);
+  ctx.fillStyle='rgba(160,115,18,.65)';
+  ctx.beginPath();ctx.moveTo(x-7,by-48);ctx.lineTo(x+32,by-84);ctx.lineTo(x+72,by-48);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(x+4,by-66);ctx.lineTo(x+32,by-98);ctx.lineTo(x+60,by-66);ctx.closePath();ctx.fill();
+}
+function drawClouds(){
+  clouds.forEach(c=>{
+    ctx.fillStyle='rgba(255,255,255,.65)';
+    ctx.beginPath();ctx.ellipse(c.x,c.y,c.w,c.w*.36,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(c.x-c.w*.28,c.y+5,c.w*.46,c.w*.3,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(c.x+c.w*.3,c.y+7,c.w*.4,c.w*.26,0,0,Math.PI*2);ctx.fill();
+  });
+}
+function drawObjs(){
+  const lv=LVL[lvl];
+  const t=Date.now()/1000;
+  const fs=cl(W/17,24,36);
+  lv.objs.forEach(o=>{
+    if(items[o.id]) return;
+    const ox=o.rx*W, oy=o.ry*H;
+    const fy=Math.sin(t*2+ox)*.06;
+    const dist=Math.hypot(px-ox,py-oy);
+    if(dist<85){ctx.save();ctx.shadowColor='rgba(255,215,0,.85)';ctx.shadowBlur=20;}
+    ctx.font=`${fs}px Arial`;ctx.textAlign='center';
+    ctx.fillText(o.em,ox,oy+fy);
+    ctx.fillStyle='rgba(0,0,0,.62)';ctx.fillRect(ox-30,oy+8,60,15);
+    ctx.fillStyle='#fff';ctx.font=`bold ${cl(W/52,9,12)}px Nunito`;
+    ctx.fillText(o.lb,ox,oy+18);
+    if(dist<85) ctx.restore();
+    if(dist<65){
+      ctx.fillStyle='rgba(255,215,0,.92)';ctx.font=`bold ${cl(W/46,10,13)}px Nunito`;
+      ctx.fillText('⚡ ДЕЙСТВИЕ',ox,oy-17);
+    }
+    ctx.textAlign='left';
+  });
+}
+function drawChar(x,y,name,em,isP){
+  const t=Date.now()/1000;
+  const bob=Math.sin(t*4)*2;
+  const fs=cl(W/16,26,40);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(x,y+16,12,4.5,0,0,Math.PI*2);ctx.fill();
+  if(isP){ctx.save();ctx.shadowColor='rgba(80,160,255,.75)';ctx.shadowBlur=13;}
+  ctx.font=`${fs}px Arial`;ctx.textAlign='center';ctx.fillText(em,x,y+bob);
+  if(isP) ctx.restore();
+  ctx.fillStyle=isP?'rgba(22,76,180,.88)':'rgba(155,45,45,.88)';
+  ctx.fillRect(x-23,y-33,46,14);
+  ctx.fillStyle='#fff';ctx.font=`bold ${cl(W/54,8,11)}px Nunito`;
+  ctx.fillText(name,x,y-23);
+  ctx.textAlign='left';
+}
+function drawParts(){
+  parts.forEach(p=>{
+    ctx.globalAlpha=p.a;
+    ctx.font=`${cl(p.s,14,26)}px Arial`;ctx.textAlign='center';
+    ctx.fillText(p.em,p.x,p.y);ctx.textAlign='left';
+  });
+  ctx.globalAlpha=1;
+}
+
+// ─────────────────────────────────────────────────────────
+// DIALOG
+// ─────────────────────────────────────────────────────────
+function showNextDlg(){
+  if(!dlgQ.length){el('dlg').classList.remove('on');return;}
+  const d=dlgQ.shift();
+  el('dlgWho').textContent=d.who;
+  el('dlgTxt').textContent=d.txt;
+  el('dlg').classList.add('on');
+}
+function dismissDlg(){
+  if(el('dlg').classList.contains('on')) showNextDlg();
+}
+
+// ─────────────────────────────────────────────────────────
+// INTERACT
+// ─────────────────────────────────────────────────────────
+function interact(){
+  if(el('puzBg').classList.contains('on')) return;
+  if(el('invPanel').classList.contains('open')){toggleInv();return;}
+  if(el('dlg').classList.contains('on')){dismissDlg();return;}
+  const lv=LVL[lvl];
+  const near=lv.objs.find(o=>{
+    if(items[o.id]) return false;
+    return Math.hypot(px-o.rx*W,py-o.ry*H)<78;
+  });
+  if(!near){showNotif('⬆️ Подойди ближе к объекту!');return;}
+  const [tp,...rest]=near.ac.split('_');
+  const key=rest.join('_');
+  if(tp==='get') doGet(near,key);
+  else if(tp==='puz') openPuz(near,key);
+  else if(tp==='dlg') openDlg(near,key);
+}
+
+function doGet(obj,key){
+  const cat=CAT.find(c=>c.id===key)||{id:key,icon:'📦',name:obj.lb};
+  items[obj.id]=true;items[key]=true;
+  score+=100;el('hudScore').textContent=score;
+  spawnP(obj.rx*W,obj.ry*H,'✨',8);
+  showNotif(`✅ ${cat.icon} ${cat.name} получен!`);
+  updateInv();checkWin();
+}
+
+// ─────────────────────────────────────────────────────────
+// PUZZLES
+// ─────────────────────────────────────────────────────────
+function openPuz(obj,key){
+  const p=PUZ[key]; if(!p) return;
+  activePuz={...p,srcObj:obj};
+  orderPickIndex=null;
+  el('puzTitle').textContent=p.title;
+  el('puzDesc').textContent=p.desc;
+  const c=el('puzContent');c.innerHTML='';
+  if(p.type==='quiz'){qStep=0;renderQuiz(c);}
+  else if(p.type==='find') renderFind(c);
+  else if(p.type==='order'){oArr=[...p.steps];renderOrder(c);}
+  else if(p.type==='code') renderCode(c);
+  else if(p.type==='math') renderMath(c);
+  else if(p.type==='bargain'){bPrice=p.sp;renderBargain(c);}
+  el('puzBg').classList.add('on');
+}
+
+function renderQuiz(c){
+  if(qStep>=activePuz.qs.length){
+    c.innerHTML=`<div style="text-align:center;padding:.7rem"><div style="font-size:2rem">🎉</div><div style="color:#7fff90;font-weight:800;margin:.4rem 0">Отлично!</div><button class="puz-btn pb-blue" onclick="puzOK()">Получить документ ✓</button></div>`;
+    return;
+  }
+  const q=activePuz.qs[qStep];
+  c.innerHTML=`<div style="font-size:.8rem;color:#cde;margin-bottom:.75rem;line-height:1.5">${q.q}</div>
+  <div class="puz-opts">${q.opts.map((o,i)=>`<button class="puz-opt" onclick="ansQ(${i})">${o}</button>`).join('')}</div>
+  <div style="color:#667;font-size:.66rem;text-align:right">Вопрос ${qStep+1}/${activePuz.qs.length}</div>`;
+}
+function ansQ(i){
+  const q=activePuz.qs[qStep];
+  document.querySelectorAll('.puz-opt').forEach((b,j)=>{
+    b.style.pointerEvents='none';
+    if(j===q.ans)b.classList.add('ok');
+    else if(j===i)b.classList.add('no');
+  });
+  setTimeout(()=>{qStep++;renderQuiz(el('puzContent'));},620);
+}
+
+function renderFind(c){
+  c.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;margin-bottom:.65rem">
+  ${activePuz.items.map((it,i)=>`<button onclick="findIt(${i})" style="font-size:1.65rem;padding:.42rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:9px;cursor:pointer;transition:opacity .2s">${it}</button>`).join('')}
+  </div><div id="findRes" style="text-align:center;font-size:.76rem;color:#889">Найди медицинскую карту Алексея!</div>`;
+}
+function findIt(i){
+  if(i===activePuz.tgt){
+    el('findRes').innerHTML='<span style="color:#7fff90;font-weight:800">✅ Справка найдена!</span>';
+    setTimeout(puzOK,850);
+  } else {
+    el('findRes').innerHTML='<span style="color:#ff6b6b">❌ Не то, попробуй другую!</span>';
+    document.querySelectorAll('#puzContent button')[i].style.opacity='.3';
+  }
+}
+
+function renderOrder(c){
+  c.innerHTML=`<div style="font-size:.72rem;color:#aad;text-align:center;margin-bottom:.55rem;line-height:1.4">Тапни пункт → затем тапни место, куда его поставить (произойдёт обмен).</div>
+  <div id="oList" style="display:flex;flex-direction:column;gap:.34rem;margin-bottom:.65rem">
+  ${oArr.map((s,i)=>`
+    <button class="puz-opt" onclick="pickOrd(${i})" style="display:flex;align-items:center;gap:.5rem;justify-content:flex-start;${orderPickIndex===i?'border-color:rgba(255,215,0,.7);background:rgba(255,215,0,.12);':''}">
+      <span style="opacity:.5;font-weight:800;width:18px;display:inline-block">${i+1}</span>${s}
+    </button>`).join('')}
+  </div>
+  <button class="puz-btn pb-blue" onclick="checkOrd()">Проверить порядок</button>
+  <div id="ordRes" class="puz-res"></div>`;
+}
+function pickOrd(i){
+  if(orderPickIndex===null){orderPickIndex=i;renderOrder(el('puzContent'));return;}
+  if(orderPickIndex===i){orderPickIndex=null;renderOrder(el('puzContent'));return;}
+  [oArr[orderPickIndex],oArr[i]]=[oArr[i],oArr[orderPickIndex]];
+  orderPickIndex=null;
+  renderOrder(el('puzContent'));
+}
+function checkOrd(){
+  if(JSON.stringify(oArr)===JSON.stringify(activePuz.steps)){
+    el('ordRes').innerHTML='<span style="color:#7fff90;font-weight:800">✅ Верно! Билет оформлен!</span>';
+    setTimeout(puzOK,850);
+  } else {
+    const r=el('ordRes');r.textContent='❌ Неверный порядок, попробуй снова!';r.className='puz-res err';
+  }
+}
+
+function renderCode(c){
+  c.innerHTML=`<div style="font-size:.74rem;color:#aad;text-align:center;margin-bottom:.65rem">${activePuz.hint}</div>
+  <input id="codeInp" class="puz-inp" type="tel" placeholder="XXX" maxlength="3" style="-webkit-appearance:none;appearance:none;">
+  <button class="puz-btn pb-orange" onclick="checkCode()">Ввести код</button>
+  <div id="codeRes" class="puz-res"></div>`;
+}
+function checkCode(){
+  const v=(el('codeInp').value||'').trim();
+  if(activePuz.sols.includes(v)){
+    el('codeRes').innerHTML='<span style="color:#7fff90;font-weight:800">✅ Замок открыт!</span>';
+    setTimeout(puzOK,850);
+  } else {
+    const r=el('codeRes');r.textContent='❌ Неверный код!';r.className='puz-res err';
+  }
+}
+
+function renderMath(c){
+  c.innerHTML=`<div style="background:rgba(255,255,255,.05);border-radius:9px;padding:.65rem;margin-bottom:.65rem;font-size:.79rem;color:#cde;line-height:1.7">
+  Курс: 1₽ = 0.36฿<br>Нужно: <b style="color:#FFD700">5 000฿</b><br>Сколько рублей поменять?</div>
+  <input id="mathInp" class="puz-inp" type="number" placeholder="Сумма в рублях" style="-webkit-appearance:none;appearance:none;">
+  <button class="puz-btn pb-green" onclick="checkMath()">Проверить</button>
+  <div id="mathRes" class="puz-res"></div>`;
+}
+function checkMath(){
+  const v=parseInt(el('mathInp').value)||0;
+  if(Math.abs(v-activePuz.correct)<=activePuz.tol){
+    el('mathRes').innerHTML=`<span style="color:#7fff90;font-weight:800">✅ Верно! ~${activePuz.correct}₽ обменяно!</span>`;
+    setTimeout(puzOK,850);
+  } else {
+    const r=el('mathRes');r.textContent=`❌ Не точно. Подсказка: около ${activePuz.correct}`;r.className='puz-res err';
+  }
+}
+
+function renderBargain(c){
+  c.innerHTML=`<div style="text-align:center;margin-bottom:.75rem">
+  <div style="font-size:2.2rem">🛺</div>
+  <div style="font-size:1.35rem;font-weight:800;color:${bPrice<=activePuz.tgt?'#7fff90':'#FFD700'}">${bPrice}฿</div>
+  <div style="font-size:.7rem;color:#889;margin-top:.15rem">Цель: ${activePuz.tgt}฿ или ниже</div></div>
+  <div class="puz-opts">
+  <button class="puz-opt" onclick="doBargain('l')">😤 «Слишком дорого! Дешевле!»</button>
+  <button class="puz-opt" onclick="doBargain('w')">🚶 Сделать вид что уходишь</button>
+  <button class="puz-opt" onclick="doBargain('a')">🤝 «Я постоянный клиент!»</button>
+  </div><div id="bgMsg" style="text-align:center;margin-top:.55rem;font-size:.76rem;color:#cde;min-height:1.6rem"></div>`;
+}
+function doBargain(t){
+  const rd={l:Math.floor(55+Math.random()*80),w:Math.floor(85+Math.random()*100),a:Math.floor(35+Math.random()*55)};
+  const ms={l:['Хорошо-хорошо, скину!','Ай ладно, скидка!'],w:['Стой! Договоримся!','Подожди!'],a:['Для постоянного — скидка!','Ладно!']};
+  bPrice=Math.max(100,bPrice-rd[t]);
+  el('bgMsg').textContent=`🧑 Водитель: "${ms[t][Math.floor(Math.random()*2)]}"`;
+  if(bPrice<=activePuz.tgt){
+    setTimeout(()=>{
+      el('bgMsg').innerHTML='<span style="color:#7fff90;font-weight:800">✅ Договорились! Едем!</span>';
+      setTimeout(puzOK,850);
+    },400);
+  } else {
+    renderBargain(el('puzContent'));
+  }
+}
+
+function puzOK(){
+  const p=activePuz;
+  el('puzBg').classList.remove('on');
+  if(p&&p.rw){
+    const r=p.rw;
+    items[r.objId]=true;items[r.itemId]=true;
+    score+=200;el('hudScore').textContent=score;
+    spawnP(px,py,'🌟',10);spawnP(px,py,'✨',7);
+    showNotif(`✅ ${r.icon} ${r.name} получен!`);
+    updateInv();checkWin();
+  }
+  activePuz=null;
+}
+
+function openDlg(obj,key){
+  const d=DLGS[key]||[];
+  dlgQ=d.slice();
+  showNextDlg();
+}
+
+// ─────────────────────────────────────────────────────────
+// WIN
+// ─────────────────────────────────────────────────────────
+function checkWin(){
+  const lv=LVL[lvl];
+  if(lv.need.every(n=>items[n])){
+    setTimeout(()=>{
+      el('lwEm').textContent=lv.we;
+      el('lwTitle').textContent=lv.wt;
+      el('lwDesc').textContent=lv.wd;
+      el('lvlWin').classList.add('on');
+      spawnP(W/2,H/2,'🎊',22);spawnP(W/2,H/2,'⭐',14);
+    },700);
+  }
+}
+function nextLevel(){
+  el('lvlWin').classList.remove('on');
+  if(lvl<LVL.length-1){lvl++;loadLevel();}
+  else {
+    el('lwEm').textContent='🏆';
+    el('lwTitle').textContent='ВЫ ПРОШЛИ ИГРУ!';
+    el('lwDesc').textContent=`Итог: ${score} очков! Алексей на пляже, Сергей — лучший друг! 🌴🌊😎`;
+    el('lvlWin').classList.add('on');
+    el('lwBtn').textContent='🔄 Заново';
+    el('lwBtn').onclick=startGame;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────────────────
+function toggleInv(){el('invPanel').classList.toggle('open');updateInv();}
+function updateInv(){
+  el('invGrid').innerHTML=CAT.map(it=>`
+    <div class="inv-it ${items[it.id]?'got':''}">
+      <div class="inv-ico">${items[it.id]?it.icon:'❓'}</div>
+      <div class="inv-nm">${items[it.id]?it.name:'???'}</div>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────────────────
+// PARTICLES
+// ─────────────────────────────────────────────────────────
+function spawnP(x,y,em,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2;
+    parts.push({x,y,vx:Math.cos(a)*2.2,vy:Math.sin(a)*2.2-1.5,em,s:18+Math.random()*11,life:52,ml:52,a:1});
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// NOTIF
+// ─────────────────────────────────────────────────────────
+function showNotif(msg){
+  const n=el('notif');n.textContent=msg;n.classList.add('show');
+  clearTimeout(n._t);n._t=setTimeout(()=>n.classList.remove('show'),2600);
+}
+
+// ─────────────────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────────────────
+function bindControls(){
+  // D-pad
+  const dmap={dU:'u',dD:'d',dL:'l',dR:'r'};
+  Object.entries(dmap).forEach(([id,dir])=>{
+    const e=el(id);if(!e) return;
+    const on=ev=>{ev.preventDefault();dp[dir]=1;e.classList.add('held');};
+    const off=ev=>{ev.preventDefault();dp[dir]=0;e.classList.remove('held');};
+    e.addEventListener('pointerdown',on,{passive:false});
+    e.addEventListener('pointerup',off,{passive:false});
+    e.addEventListener('pointercancel',off,{passive:false});
+    e.addEventListener('pointerleave',off,{passive:false});
+    e.addEventListener('touchstart',on,{passive:false});
+    e.addEventListener('touchend',off,{passive:false});
+    e.addEventListener('touchcancel',off,{passive:false});
+    e.addEventListener('mousedown',on);
+    e.addEventListener('mouseup',off);
+    e.addEventListener('mouseleave',off);
+  });
+  // Buttons
+  bindTap(el('btnAct'),interact);
+  bindTap(el('btnInv'),toggleInv);
+  bindTap(el('invX'),toggleInv);
+  // Canvas click to dismiss dialog
+  el('gc').addEventListener('pointerdown',e=>{e.preventDefault();dismissDlg();},{passive:false});
+  el('gc').addEventListener('touchstart',e=>{e.preventDefault();dismissDlg();},{passive:false});
+  el('gc').addEventListener('click',e=>{e.preventDefault();dismissDlg();},{passive:false});
+  // Keyboard
+  const km={ArrowUp:'u',ArrowDown:'d',ArrowLeft:'l',ArrowRight:'r',w:'u',s:'d',a:'l',d:'r'};
+  document.addEventListener('keydown',e=>{if(km[e.key]) dp[km[e.key]]=1;if(e.key==='Enter'||e.key===' ') interact();});
+  document.addEventListener('keyup',e=>{if(km[e.key]) dp[km[e.key]]=0;});
+}
+
+function setupMobileTaps(){
+  if(!isTouchDevice()) return;
+  document.addEventListener('gesturestart',ev=>ev.preventDefault(),{passive:false});
+  document.addEventListener('gesturechange',ev=>ev.preventDefault(),{passive:false});
+  document.addEventListener('gestureend',ev=>ev.preventDefault(),{passive:false});
+}
+
+// ─────────────────────────────────────────────────────────
+// LOBBY (simplified demo)
+// ─────────────────────────────────────────────────────────
+function rndCode(){return Math.random().toString(36).substring(2,8).toUpperCase();}
+function initLobby(){
+  el('roomInp').value=rndCode();
+  el('pslot2').className='pslot';
+  el('pslot2').innerHTML='<div class="pslot-ico">👤</div>Ожидание...';
+  el('lobbyMsg').textContent='';
+}
+function createRoom(){
+  const code=el('roomInp').value.toUpperCase();
+  if(code.length<3){el('lobbyMsg').textContent='Введи код!';return;}
+  el('lobbyMsg').textContent=`🔗 Комната ${code} создана. Скинь код другу!`;
+  setTimeout(()=>{
+    el('pslot2').className='pslot on';
+    el('pslot2').innerHTML='<div class="pslot-ico">🧔</div>Алексей<br><small>Подключился!</small>';
+    el('lobbyMsg').textContent='✅ Друг подключился! Начинаем...';
+    setTimeout(startGame,1400);
+  },3000);
+}
+function joinRoom(){
+  const code=el('roomInp').value.toUpperCase();
+  if(code.length<3){el('lobbyMsg').textContent='Введи код!';return;}
+  el('lobbyMsg').textContent=`🔍 Входим в ${code}...`;
+  setTimeout(()=>{
+    el('pslot2').className='pslot on';
+    el('pslot2').innerHTML='<div class="pslot-ico">🧑‍💼</div>Сергей<br><small>Уже здесь!</small>';
+    el('lobbyMsg').textContent='✅ Подключено! Начинаем...';
+    setTimeout(startGame,1400);
+  },2000);
+}
+
+// ─────────────────────────────────────────────────────────
+// STARS INTRO
+// ─────────────────────────────────────────────────────────
+(function(){
+  const c=el('starsEl');
+  for(let i=0;i<100;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2.4+.4;
+    s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;animation-delay:${Math.random()*2}s;animation-duration:${1.3+Math.random()*2}s`;
+    c.appendChild(s);
+  }
+})();
+
+// ─────────────────────────────────────────────────────────
+// BUTTON BINDINGS
+// ─────────────────────────────────────────────────────────
+setupMobileTaps();
+bindTap(el('btnSolo'),startGame);
+bindTap(el('btnMulti'),()=>{ss('sLobby');initLobby();});
+bindTap(el('btnInstall'),()=>ss('sInstall'));
+bindTap(el('btnBackInstall'),()=>ss('sIntro'));
+bindTap(el('btnBackLobby'),()=>ss('sIntro'));
+bindTap(el('btnCreate'),createRoom);
+bindTap(el('btnJoin'),joinRoom);
+bindTap(el('lwBtn'),nextLevel);
+
+bindTap(el('btnOpenSafari'),()=>{executeOpenInSafari();});
+bindTap(el('btnShareFile'),async ()=>{
+  const url=String(location.href||'');
+  try{
+    if(navigator.share){
+      await navigator.share({title:'Операция Таиланд',text:'Сохрани файл и открой в Safari',url});
+      return;
+    }
+  }catch(err){}
+  showNotif('📤 Нажми “Поделиться” в меню Telegram и сохрани в «Файлы»');
+});
+bindTap(el('btnContinueHere'),()=>{hideLaunch();});
+
+if(isIphone() && isTelegramWebView() && !isSafariBrowser()){
+  renderLaunchInstructions();
+  showLaunch();
+}
+
+// Init inventory
+updateInv();
+</script>
+
+</body>
+</html>
