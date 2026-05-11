@@ -16,17 +16,20 @@ jobs:
       contents: write
       issues: write
     steps:
-      - name: Install yt-dlp and ffmpeg
+      - name: Install dependencies
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg
           pip install -U yt-dlp
+          pip install "yt-dlp-youtube-oauth2 @ git+https://github.com/coletdjnz/yt-dlp-youtube-oauth2"
+          yt-dlp --version
 
-      - name: Start OAuth2 login + post URL to GitHub Issue
+      - name: Start OAuth2 and post auth link to GitHub Issue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Run yt-dlp oauth2 in background, capture output
-          yt-dlp --username oauth2 --password "" \
+          # Start yt-dlp with OAuth2 in background
+          yt-dlp \
+            --username oauth2 --password "" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
             -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
@@ -34,35 +37,43 @@ jobs:
             "https://www.youtube.com/watch?v=KC5kNsHYHpM" 2>&1 | tee /tmp/ytdlp_out.txt &
           YTDLP_PID=$!
 
-          # Wait up to 30s for the OAuth2 URL to appear
-          for i in $(seq 1 30); do
+          echo "Waiting for OAuth2 URL..."
+          for i in $(seq 1 60); do
             if grep -q "google.com/device" /tmp/ytdlp_out.txt 2>/dev/null; then
+              echo "Found OAuth2 URL"
               break
             fi
-            sleep 1
+            sleep 2
           done
 
-          # Post the URL to a GitHub Issue so you can open it on your phone
-          OAUTH_LINE=$(grep -o "https://www.google.com/device[^ ]*" /tmp/ytdlp_out.txt | head -1)
-          CODE=$(grep -oE "[A-Z0-9]{4}-[A-Z0-9]{4}" /tmp/ytdlp_out.txt | head -1)
-          echo "OAuth URL: $OAUTH_LINE  Code: $CODE"
+          cat /tmp/ytdlp_out.txt
 
-          if [ -n "$OAUTH_LINE" ]; then
+          OAUTH_URL=$(grep -oE "https://[^ ]+" /tmp/ytdlp_out.txt | grep "google.com/device" | head -1)
+          CODE=$(grep -oE "[A-Z0-9]{4}-[A-Z0-9]{4}" /tmp/ytdlp_out.txt | head -1)
+
+          echo "URL: $OAUTH_URL"
+          echo "Code: $CODE"
+
+          if [ -n "$OAUTH_URL" ]; then
             gh issue create \
               --repo sergeystepanovich/thailand-adventure \
-              --title "🔑 Открой на телефоне чтобы скачать видео" \
-              --body "**Открой эту ссылку на телефоне:**
+              --title "Открой на телефоне чтобы скачать видео" \
+              --body "Открой эту ссылку на телефоне: ${OAUTH_URL}
 
-$OAUTH_LINE
-
-**Введи код:** \`$CODE\`
+Код для ввода: ${CODE}
 
 После авторизации видео скачается автоматически."
+            echo "Issue created!"
+          else
+            echo "OAuth2 URL not found in output:"
+            cat /tmp/ytdlp_out.txt
+            kill $YTDLP_PID 2>/dev/null
+            exit 1
           fi
 
-          # Wait for yt-dlp to finish (user has ~10 min to authorize)
+          # Wait for download (user has ~10 min to authorize)
           wait $YTDLP_PID
-          ls -lh clip_35-39.* 2>/dev/null || { echo "Download failed"; cat /tmp/ytdlp_out.txt; exit 1; }
+          ls -lh clip_35-39.*
 
       - name: Publish as GitHub Release
         env:
