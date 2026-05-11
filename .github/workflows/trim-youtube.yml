@@ -20,70 +20,96 @@ jobs:
           sudo apt-get update -q && sudo apt-get install -y ffmpeg jq
           pip install -U yt-dlp
 
-      - name: Get stream URL via Invidious / Piped API
-        id: get_url
+      - name: Try Invidious video proxy
+        id: invidious_proxy
+        continue-on-error: true
         run: |
           VIDEO_ID="KC5kNsHYHpM"
-          STREAM_URL=""
+          # /latest_version?local=true proxies video through Invidious server (bypasses IP block)
+          # itag 22 = 720p MP4+audio, itag 18 = 360p MP4+audio
+          for INSTANCE in yewtu.be inv.nadeko.net invidious.privacydev.net invidious.nerdvpn.de iv.melmac.space; do
+            for ITAG in 22 18; do
+              URL="https://${INSTANCE}/latest_version?id=${VIDEO_ID}&itag=${ITAG}&local=true"
+              echo "Testing: ${INSTANCE} itag=${ITAG}"
+              HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --head "$URL" 2>/dev/null || echo "000")
+              echo "  HEAD -> HTTP $HTTP"
+              if [ "$HTTP" = "200" ] || [ "$HTTP" = "206" ] || [ "$HTTP" = "302" ]; then
+                echo "  Downloading 35:00-39:00..."
+                if ffmpeg -ss 00:35:00 -to 00:39:00 -i "$URL" -c copy -y clip_35-39.mp4 2>&1 | tail -5; then
+                  ls -lh clip_35-39.mp4
+                  exit 0
+                fi
+                echo "  ffmpeg failed, trying next"
+              fi
+            done
+          done
+          echo "All Invidious proxy attempts failed"
+          exit 1
 
+      - name: Try Invidious API + direct CDN URL
+        id: invidious_api
+        if: steps.invidious_proxy.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          VIDEO_ID="KC5kNsHYHpM"
           for INSTANCE in yewtu.be inv.nadeko.net invidious.privacydev.net invidious.nerdvpn.de iv.melmac.space invidious.io.lol; do
-            echo "=== Trying Invidious: $INSTANCE ==="
+            echo "=== API: $INSTANCE ==="
             HTTP=$(curl -s -o /tmp/inv.json -w "%{http_code}" --max-time 20 "https://$INSTANCE/api/v1/videos/$VIDEO_ID")
             echo "HTTP: $HTTP"
             [ "$HTTP" != "200" ] && continue
-
             echo "Title: $(jq -r '.title // "N/A"' /tmp/inv.json)"
-            echo "formatStreams count: $(jq '.formatStreams | length' /tmp/inv.json)"
-            jq -r '.formatStreams[] | "  type=\(.type) quality=\(.quality) url_len=\(.url | length)"' /tmp/inv.json 2>/dev/null || true
-
+            echo "formatStreams: $(jq '.formatStreams | length' /tmp/inv.json)"
             STREAM_URL=$(jq -r '.formatStreams[] | select(.type | contains("mp4")) | .url' /tmp/inv.json 2>/dev/null | head -1)
-            [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ] && { echo "Got URL from $INSTANCE"; break; }
-
-            # Also check hlsUrl for live stream replays
-            HLS=$(jq -r '.hlsUrl // ""' /tmp/inv.json 2>/dev/null)
-            [ -n "$HLS" ] && [ "$HLS" != "null" ] && { STREAM_URL="$HLS"; echo "Got HLS URL from $INSTANCE"; break; }
-
-            echo "No usable stream found at $INSTANCE"
-          done
-
-          if [ -z "$STREAM_URL" ] || [ "$STREAM_URL" = "null" ]; then
-            echo "=== Trying Piped API ==="
-            HTTP=$(curl -s -o /tmp/piped.json -w "%{http_code}" --max-time 20 "https://pipedapi.kavin.rocks/streams/$VIDEO_ID")
-            echo "Piped HTTP: $HTTP"
-            if [ "$HTTP" = "200" ]; then
-              echo "Piped title: $(jq -r '.title // "N/A"' /tmp/piped.json)"
-              STREAM_URL=$(jq -r '.videoStreams | sort_by(-.bitrate) | .[] | select(.mimeType | startswith("video/mp4")) | .url' /tmp/piped.json 2>/dev/null | head -1)
-              [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ] && echo "Got URL from Piped"
+            if [ -z "$STREAM_URL" ] || [ "$STREAM_URL" = "null" ]; then
+              HLS=$(jq -r '.hlsUrl // ""' /tmp/inv.json 2>/dev/null)
+              [ -n "$HLS" ] && [ "$HLS" != "null" ] && STREAM_URL="$HLS"
             fi
-          fi
+            if [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ]; then
+              echo "Got URL (${#STREAM_URL} chars), downloading..."
+              if ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy -y clip_35-39.mp4 2>&1 | tail -5; then
+                ls -lh clip_35-39.mp4
+                exit 0
+              fi
+            else
+              echo "No URL in response"
+            fi
+          done
+          exit 1
 
-          if [ -z "$STREAM_URL" ] || [ "$STREAM_URL" = "null" ]; then
-            echo "ERROR: All API sources failed"
-            exit 1
-          fi
-
-          echo "$STREAM_URL" > /tmp/stream_url.txt
-          echo "Stream URL obtained (${#STREAM_URL} chars)"
-
-      - name: Download and trim via ffmpeg
-        id: ffmpeg_download
+      - name: Try Piped API
+        id: piped
+        if: steps.invidious_proxy.outcome == 'failure' && steps.invidious_api.outcome == 'failure'
         continue-on-error: true
         run: |
-          STREAM_URL=$(cat /tmp/stream_url.txt)
-          echo "Downloading segment 35:00-39:00 from stream..."
-          ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy -y clip_35-39.mp4
-          ls -lh clip_35-39.mp4
+          VIDEO_ID="KC5kNsHYHpM"
+          for PIPED_API in pipedapi.kavin.rocks pipedapi.adminforge.de; do
+            echo "=== Piped: $PIPED_API ==="
+            HTTP=$(curl -s -o /tmp/piped.json -w "%{http_code}" --max-time 20 "https://$PIPED_API/streams/$VIDEO_ID")
+            echo "HTTP: $HTTP"
+            [ "$HTTP" != "200" ] && continue
+            echo "Title: $(jq -r '.title // "N/A"' /tmp/piped.json)"
+            STREAM_URL=$(jq -r '.videoStreams | sort_by(-.bitrate) | .[] | select(.mimeType | startswith("video/mp4")) | .url' /tmp/piped.json 2>/dev/null | head -1)
+            if [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ]; then
+              echo "Got URL, downloading..."
+              if ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy -y clip_35-39.mp4 2>&1 | tail -5; then
+                ls -lh clip_35-39.mp4
+                exit 0
+              fi
+            fi
+          done
+          exit 1
 
-      - name: Fallback - yt-dlp ios+tv_embedded clients
-        if: steps.ffmpeg_download.outcome == 'failure'
+      - name: Fallback - yt-dlp ios client
+        if: steps.invidious_proxy.outcome == 'failure' && steps.invidious_api.outcome == 'failure' && steps.piped.outcome == 'failure'
         run: |
-          echo "ffmpeg direct failed, trying yt-dlp with ios+tv_embedded..."
+          echo "All proxy methods failed, trying yt-dlp ios client..."
           yt-dlp \
-            --extractor-args "youtube:player_client=ios,tv_embedded,web" \
+            --extractor-args "youtube:player_client=ios,tv_embedded" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
             -f "best[height<=720][ext=mp4]/best[ext=mp4]/best" \
             -o "clip_35-39.%(ext)s" \
+            --verbose \
             "https://www.youtube.com/watch?v=KC5kNsHYHpM"
           ls -lh clip_35-39.*
 
