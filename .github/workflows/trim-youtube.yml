@@ -11,76 +11,84 @@ on:
 jobs:
   download-and-trim:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: write
-      issues: write
     steps:
       - name: Install dependencies
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg
           pip install -U yt-dlp
-          pip install "yt-dlp-youtube-oauth2 @ git+https://github.com/coletdjnz/yt-dlp-youtube-oauth2"
-          yt-dlp --version
 
-      - name: Start OAuth2 and post auth link to GitHub Issue
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Try Invidious instances to get stream URL
         run: |
-          # Start yt-dlp with OAuth2 in background
-          yt-dlp \
-            --username oauth2 --password "" \
-            --download-sections "*35:00-39:00" \
-            --force-keyframes-at-cuts \
-            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-            -o "clip_35-39.%(ext)s" \
-            "https://www.youtube.com/watch?v=KC5kNsHYHpM" 2>&1 | tee /tmp/ytdlp_out.txt &
-          YTDLP_PID=$!
+          VIDEO_ID="KC5kNsHYHpM"
+          STREAM_URL=""
 
-          echo "Waiting for OAuth2 URL..."
-          for i in $(seq 1 60); do
-            if grep -q "google.com/device" /tmp/ytdlp_out.txt 2>/dev/null; then
-              echo "Found OAuth2 URL"
-              break
+          for INSTANCE in \
+            "invidious.snopyta.org" \
+            "inv.riverside.rocks" \
+            "y.com.sb" \
+            "invidious.tiekoetter.com" \
+            "yt.artemislena.eu" \
+            "invidious.flokinet.to" \
+            "iv.melmac.space" \
+            "invidious.privacydev.net"; do
+
+            echo "Trying $INSTANCE..."
+            RESP=$(curl -sf --max-time 15 "https://$INSTANCE/api/v1/videos/$VIDEO_ID" 2>/dev/null)
+            if [ -z "$RESP" ]; then
+              echo "  -> no response"
+              continue
             fi
-            sleep 2
+
+            URL=$(echo "$RESP" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    streams = d.get('formatStreams', [])
+    for s in streams:
+        if 'mp4' in s.get('container','') or 'mp4' in s.get('type',''):
+            print(s['url'])
+            break
+except: pass
+" 2>/dev/null)
+
+            if [ -n "$URL" ]; then
+              echo "  -> GOT URL via $INSTANCE"
+              echo "$URL" > /tmp/stream_url.txt
+              STREAM_URL="$URL"
+              break
+            else
+              echo "  -> no stream URL in response"
+            fi
           done
 
-          cat /tmp/ytdlp_out.txt
-
-          OAUTH_URL=$(grep -oE "https://[^ ]+" /tmp/ytdlp_out.txt | grep "google.com/device" | head -1)
-          CODE=$(grep -oE "[A-Z0-9]{4}-[A-Z0-9]{4}" /tmp/ytdlp_out.txt | head -1)
-
-          echo "URL: $OAUTH_URL"
-          echo "Code: $CODE"
-
-          if [ -n "$OAUTH_URL" ]; then
-            gh issue create \
-              --repo sergeystepanovich/thailand-adventure \
-              --title "Открой на телефоне чтобы скачать видео" \
-              --body "Открой эту ссылку на телефоне: ${OAUTH_URL}
-
-Код для ввода: ${CODE}
-
-После авторизации видео скачается автоматически."
-            echo "Issue created!"
-          else
-            echo "OAuth2 URL not found in output:"
-            cat /tmp/ytdlp_out.txt
-            kill $YTDLP_PID 2>/dev/null
-            exit 1
+          if [ -z "$STREAM_URL" ]; then
+            echo "All Invidious instances failed, trying yt-dlp with invidious extractor..."
+            yt-dlp \
+              --extractor-args "youtube:player_client=web_embedded" \
+              --get-url \
+              -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+              "https://www.youtube.com/watch?v=$VIDEO_ID" > /tmp/stream_url.txt 2>&1 || true
+            cat /tmp/stream_url.txt
           fi
 
-          # Wait for download (user has ~10 min to authorize)
-          wait $YTDLP_PID
-          ls -lh clip_35-39.*
+          [ -s /tmp/stream_url.txt ] || { echo "No stream URL found"; exit 1; }
+          echo "Stream URL: $(head -c 100 /tmp/stream_url.txt)..."
+
+      - name: Trim 35:00-39:00 with ffmpeg
+        run: |
+          URL=$(cat /tmp/stream_url.txt)
+          ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
+          ls -lh clip_35-39.mp4
 
       - name: Publish as GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete youtube-clip-35-39 --repo sergeystepanovich/thailand-adventure --yes 2>/dev/null || true
-          gh release create youtube-clip-35-39 clip_35-39.* \
+          gh release create youtube-clip-35-39 clip_35-39.mp4 \
             --repo sergeystepanovich/thailand-adventure \
             --title "YouTube clip 35:00-39:00" \
             --notes "KC5kNsHYHpM (35:00–39:00)"
