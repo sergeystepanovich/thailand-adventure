@@ -11,137 +11,58 @@ on:
 jobs:
   download-and-trim:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
+      issues: write
     steps:
-      - name: Install dependencies
+      - name: Install yt-dlp and ffmpeg
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg
           pip install -U yt-dlp
-          npm init -y
-          npm install playwright
-          npx playwright install chromium --with-deps
 
-      - name: Extract po_token + visitor_data via real Chromium
+      - name: Start OAuth2 login + post URL to GitHub Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat > get_pot.js << 'JSEOF'
-          const { chromium } = require('./node_modules/playwright');
-          const fs = require('fs');
+          # Run yt-dlp oauth2 in background, capture output
+          yt-dlp --username oauth2 --password "" \
+            --download-sections "*35:00-39:00" \
+            --force-keyframes-at-cuts \
+            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+            -o "clip_35-39.%(ext)s" \
+            "https://www.youtube.com/watch?v=KC5kNsHYHpM" 2>&1 | tee /tmp/ytdlp_out.txt &
+          YTDLP_PID=$!
 
-          let poToken = null, visitorData = null;
+          # Wait up to 30s for the OAuth2 URL to appear
+          for i in $(seq 1 30); do
+            if grep -q "google.com/device" /tmp/ytdlp_out.txt 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
 
-          (async () => {
-            const browser = await chromium.launch({
-              headless: true,
-              args: [
-                '--no-sandbox', '--disable-dev-shm-usage',
-                '--disable-blink-features=AutomationControlled',
-                '--autoplay-policy=no-user-gesture-required'
-              ]
-            });
-            const context = await browser.newContext({
-              userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-              viewport: { width: 1920, height: 1080 }
-            });
-            const page = await context.newPage();
+          # Post the URL to a GitHub Issue so you can open it on your phone
+          OAUTH_LINE=$(grep -o "https://www.google.com/device[^ ]*" /tmp/ytdlp_out.txt | head -1)
+          CODE=$(grep -oE "[A-Z0-9]{4}-[A-Z0-9]{4}" /tmp/ytdlp_out.txt | head -1)
+          echo "OAuth URL: $OAUTH_LINE  Code: $CODE"
 
-            await page.addInitScript(() => {
-              Object.defineProperty(navigator, 'webdriver', { get: () => false });
-              Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
-            });
+          if [ -n "$OAUTH_LINE" ]; then
+            gh issue create \
+              --repo sergeystepanovich/thailand-adventure \
+              --title "🔑 Открой на телефоне чтобы скачать видео" \
+              --body "**Открой эту ссылку на телефоне:**
 
-            // Intercept player API requests to steal po_token
-            await page.route('**/youtubei/v1/player**', async route => {
-              const req = route.request();
-              try {
-                const body = JSON.parse(req.postData() || '{}');
-                if (body?.serviceIntegrityDimensions?.poToken) {
-                  poToken = body.serviceIntegrityDimensions.poToken;
-                  process.stderr.write('po_token FOUND: ' + poToken.substring(0,40) + '...\n');
-                }
-                if (body?.context?.client?.visitorData) {
-                  visitorData = body.context.client.visitorData;
-                  process.stderr.write('visitor_data FOUND: ' + visitorData.substring(0,40) + '...\n');
-                }
-              } catch(e) {}
-              await route.continue();
-            });
+$OAUTH_LINE
 
-            process.stderr.write('Loading YouTube...\n');
-            await page.goto('https://www.youtube.com/watch?v=KC5kNsHYHpM', {
-              waitUntil: 'domcontentloaded', timeout: 30000
-            });
-            await page.waitForTimeout(4000);
+**Введи код:** \`$CODE\`
 
-            const title = await page.title();
-            process.stderr.write('Title: ' + title + '\n');
-
-            for (const sel of ['[aria-label="Accept all"]', 'button:has-text("Accept all")']) {
-              try { await page.click(sel, { timeout: 1500 }); break; } catch(e) {}
-            }
-            await page.waitForTimeout(2000);
-
-            // Force play to trigger player API call
-            await page.evaluate(() => {
-              const v = document.querySelector('video');
-              if (v) { v.muted = true; v.play(); }
-            }).catch(() => {});
-
-            await page.waitForTimeout(10000);
-
-            process.stderr.write('po_token: ' + (poToken ? 'YES' : 'NO') + '\n');
-            process.stderr.write('visitor_data: ' + (visitorData ? 'YES' : 'NO') + '\n');
-
-            if (poToken) fs.writeFileSync('/tmp/po_token.txt', poToken);
-            if (visitorData) fs.writeFileSync('/tmp/visitor_data.txt', visitorData);
-
-            // Always save cookies too
-            const cookies = await context.cookies();
-            let cf = '# Netscape HTTP Cookie File\n';
-            for (const c of cookies) {
-              const d = c.domain.startsWith('.') ? c.domain : '.' + c.domain;
-              cf += `${d}\tTRUE\t${c.path}\t${c.secure?'TRUE':'FALSE'}\t${c.expires>0?Math.floor(c.expires):2147483647}\t${c.name}\t${c.value}\n`;
-            }
-            fs.writeFileSync('/tmp/yt_cookies.txt', cf);
-            process.stderr.write('Saved ' + cookies.length + ' cookies\n');
-
-            await browser.close();
-          })().catch(e => process.stderr.write('Error: ' + e.message + '\n'));
-          JSEOF
-          node get_pot.js
-          echo "po_token exists: $([ -f /tmp/po_token.txt ] && echo YES || echo NO)"
-          echo "visitor_data exists: $([ -f /tmp/visitor_data.txt ] && echo YES || echo NO)"
-
-      - name: Download and trim with yt-dlp + po_token
-        run: |
-          YTDLP_ARGS="--download-sections '*35:00-39:00' --force-keyframes-at-cuts -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' -o 'clip_35-39.%(ext)s'"
-
-          if [ -f /tmp/po_token.txt ] && [ -f /tmp/visitor_data.txt ]; then
-            PO_TOKEN=$(cat /tmp/po_token.txt)
-            VISITOR_DATA=$(cat /tmp/visitor_data.txt)
-            echo "Using po_token + visitor_data"
-            yt-dlp \
-              --po-token "web+https://www.youtube.com/+${PO_TOKEN}" \
-              --extractor-args "youtube:visitor_data=${VISITOR_DATA}" \
-              --cookies /tmp/yt_cookies.txt \
-              --js-runtimes node \
-              --download-sections "*35:00-39:00" \
-              --force-keyframes-at-cuts \
-              -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-              -o "clip_35-39.%(ext)s" \
-              "https://www.youtube.com/watch?v=KC5kNsHYHpM"
-          else
-            echo "No po_token, trying with cookies only"
-            yt-dlp \
-              --cookies /tmp/yt_cookies.txt \
-              --js-runtimes node \
-              --download-sections "*35:00-39:00" \
-              --force-keyframes-at-cuts \
-              -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-              -o "clip_35-39.%(ext)s" \
-              "https://www.youtube.com/watch?v=KC5kNsHYHpM"
+После авторизации видео скачается автоматически."
           fi
-          ls -lh clip_35-39.*
+
+          # Wait for yt-dlp to finish (user has ~10 min to authorize)
+          wait $YTDLP_PID
+          ls -lh clip_35-39.* 2>/dev/null || { echo "Download failed"; cat /tmp/ytdlp_out.txt; exit 1; }
 
       - name: Publish as GitHub Release
         env:
