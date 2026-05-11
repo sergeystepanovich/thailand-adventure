@@ -1,6 +1,9 @@
 name: Trim YouTube Video
 
 on:
+  push:
+    branches:
+      - claude/trim-youtube-video-xHRQP
   workflow_dispatch:
 
 jobs:
