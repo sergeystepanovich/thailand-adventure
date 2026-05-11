@@ -17,79 +17,69 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update -q && sudo apt-get install -y ffmpeg
+          sudo apt-get update -q && sudo apt-get install -y ffmpeg jq
           pip install -U yt-dlp
 
       - name: Get stream URL via Invidious / Piped API
         id: get_url
         run: |
           VIDEO_ID="KC5kNsHYHpM"
+          STREAM_URL=""
 
-          # Try Invidious instances
-          INVIDIOUS_INSTANCES="yewtu.be inv.nadeko.net invidious.privacydev.net invidious.nerdvpn.de iv.melmac.space"
-          for INSTANCE in $INVIDIOUS_INSTANCES; do
-            echo "Trying Invidious: $INSTANCE"
-            RESULT=$(curl -sf --max-time 20 "https://$INSTANCE/api/v1/videos/$VIDEO_ID" 2>/dev/null) || { echo "  -> curl failed"; continue; }
-            echo "$RESULT" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null || { echo "  -> invalid JSON"; continue; }
-            echo "$RESULT" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-for f in d.get('formatStreams', []):
-    if 'mp4' in f.get('type','') and f.get('url'):
-        print(f['url']); sys.exit(0)
-sys.exit(1)
-" > /tmp/stream_url.txt 2>/dev/null && STREAM_URL=$(cat /tmp/stream_url.txt)
-            if [ -n "$STREAM_URL" ]; then
-              echo "Got stream URL from $INSTANCE"
-              break
-            fi
-            echo "  -> no usable stream found"
+          for INSTANCE in yewtu.be inv.nadeko.net invidious.privacydev.net invidious.nerdvpn.de iv.melmac.space invidious.io.lol; do
+            echo "=== Trying Invidious: $INSTANCE ==="
+            HTTP=$(curl -s -o /tmp/inv.json -w "%{http_code}" --max-time 20 "https://$INSTANCE/api/v1/videos/$VIDEO_ID")
+            echo "HTTP: $HTTP"
+            [ "$HTTP" != "200" ] && continue
+
+            echo "Title: $(jq -r '.title // "N/A"' /tmp/inv.json)"
+            echo "formatStreams count: $(jq '.formatStreams | length' /tmp/inv.json)"
+            jq -r '.formatStreams[] | "  type=\(.type) quality=\(.quality) url_len=\(.url | length)"' /tmp/inv.json 2>/dev/null || true
+
+            STREAM_URL=$(jq -r '.formatStreams[] | select(.type | contains("mp4")) | .url' /tmp/inv.json 2>/dev/null | head -1)
+            [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ] && { echo "Got URL from $INSTANCE"; break; }
+
+            # Also check hlsUrl for live stream replays
+            HLS=$(jq -r '.hlsUrl // ""' /tmp/inv.json 2>/dev/null)
+            [ -n "$HLS" ] && [ "$HLS" != "null" ] && { STREAM_URL="$HLS"; echo "Got HLS URL from $INSTANCE"; break; }
+
+            echo "No usable stream found at $INSTANCE"
           done
 
-          # Fallback: Piped API
-          if [ -z "$STREAM_URL" ]; then
-            echo "Trying Piped API..."
-            RESULT=$(curl -sf --max-time 20 "https://pipedapi.kavin.rocks/streams/$VIDEO_ID" 2>/dev/null) || true
-            if [ -n "$RESULT" ]; then
-              echo "$RESULT" | python3 -c "
-import sys, json
-d = json.load(sys.stdin)
-streams = d.get('videoStreams', [])
-for s in sorted(streams, key=lambda x: x.get('bitrate', 0), reverse=True):
-    if s.get('mimeType','').startswith('video/mp4') and s.get('url'):
-        print(s['url']); sys.exit(0)
-sys.exit(1)
-" > /tmp/stream_url.txt 2>/dev/null && STREAM_URL=$(cat /tmp/stream_url.txt)
-              if [ -n "$STREAM_URL" ]; then
-                echo "Got stream URL from Piped"
-              fi
+          if [ -z "$STREAM_URL" ] || [ "$STREAM_URL" = "null" ]; then
+            echo "=== Trying Piped API ==="
+            HTTP=$(curl -s -o /tmp/piped.json -w "%{http_code}" --max-time 20 "https://pipedapi.kavin.rocks/streams/$VIDEO_ID")
+            echo "Piped HTTP: $HTTP"
+            if [ "$HTTP" = "200" ]; then
+              echo "Piped title: $(jq -r '.title // "N/A"' /tmp/piped.json)"
+              STREAM_URL=$(jq -r '.videoStreams | sort_by(-.bitrate) | .[] | select(.mimeType | startswith("video/mp4")) | .url' /tmp/piped.json 2>/dev/null | head -1)
+              [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ] && echo "Got URL from Piped"
             fi
           fi
 
-          if [ -z "$STREAM_URL" ]; then
-            echo "All API sources failed"
+          if [ -z "$STREAM_URL" ] || [ "$STREAM_URL" = "null" ]; then
+            echo "ERROR: All API sources failed"
             exit 1
           fi
 
-          # Write URL to file for next step (avoids shell escaping issues)
           echo "$STREAM_URL" > /tmp/stream_url.txt
-          echo "Stream URL obtained (length=${#STREAM_URL})"
+          echo "Stream URL obtained (${#STREAM_URL} chars)"
 
       - name: Download and trim via ffmpeg
         id: ffmpeg_download
         continue-on-error: true
         run: |
           STREAM_URL=$(cat /tmp/stream_url.txt)
-          echo "Downloading segment 35:00-39:00..."
-          ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy clip_35-39.mp4
+          echo "Downloading segment 35:00-39:00 from stream..."
+          ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy -y clip_35-39.mp4
           ls -lh clip_35-39.mp4
 
-      - name: Fallback - yt-dlp with tv_embedded client
+      - name: Fallback - yt-dlp ios+tv_embedded clients
         if: steps.ffmpeg_download.outcome == 'failure'
         run: |
-          echo "ffmpeg direct download failed, trying yt-dlp tv_embedded client..."
+          echo "ffmpeg direct failed, trying yt-dlp with ios+tv_embedded..."
           yt-dlp \
-            --extractor-args "youtube:player_client=tv_embedded" \
+            --extractor-args "youtube:player_client=ios,tv_embedded,web" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
             -f "best[height<=720][ext=mp4]/best[ext=mp4]/best" \
