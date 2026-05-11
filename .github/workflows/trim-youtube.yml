@@ -10,45 +10,83 @@ jobs:
   download-and-trim:
     runs-on: ubuntu-latest
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt-get update -q && sudo apt-get install -y ffmpeg
-          pip install -U yt-dlp
+      - name: Install ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y ffmpeg
 
-      - name: Try cobalt.tools API → ffmpeg trim
-        id: cobalt
-        continue-on-error: true
+      - name: Install Playwright + Chromium
         run: |
-          echo "Calling cobalt.tools API..."
-          RESPONSE=$(curl -s -X POST "https://api.cobalt.tools" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d '{"url":"https://www.youtube.com/watch?v=KC5kNsHYHpM","videoQuality":"720","filenameStyle":"basic"}' \
-            --max-time 30)
-          echo "Response: $RESPONSE"
-          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','error'))" 2>/dev/null || echo "error")
-          URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('url','') or d.get('stream',''))" 2>/dev/null || echo "")
-          echo "Status=$STATUS  URL=$URL"
-          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
-            echo "cobalt returned no URL, skipping"
-            exit 1
-          fi
-          echo "Downloading segment 35:00-39:00 via ffmpeg..."
+          npm init -y
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: Extract YouTube stream URL via real browser
+        run: |
+          cat > get_stream.js << 'JSEOF'
+          const { chromium } = require('./node_modules/playwright');
+          const fs = require('fs');
+
+          (async () => {
+            const browser = await chromium.launch({
+              headless: true,
+              args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled']
+            });
+            const context = await browser.newContext({
+              userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+              viewport: { width: 1280, height: 720 }
+            });
+            const page = await context.newPage();
+
+            await page.addInitScript(() => {
+              Object.defineProperty(navigator, 'webdriver', { get: () => false });
+            });
+
+            const manifestUrls = [];
+            page.on('response', res => {
+              const url = res.url();
+              if (url.includes('manifest.googlevideo.com') || url.includes('googlevideo.com/videoplayback')) {
+                manifestUrls.push(url);
+                process.stderr.write('Found: ' + url.substring(0, 120) + '\n');
+              }
+            });
+
+            process.stderr.write('Opening YouTube...\n');
+            try {
+              await page.goto('https://www.youtube.com/watch?v=KC5kNsHYHpM', { waitUntil: 'networkidle', timeout: 60000 });
+            } catch(e) {
+              process.stderr.write('Goto error: ' + e.message + '\n');
+            }
+            await page.waitForTimeout(8000);
+
+            // Try to dismiss consent / click play
+            try { await page.click('[aria-label="Accept all"]', { timeout: 2000 }); } catch(e) {}
+            try { await page.click('.ytp-play-button', { timeout: 2000 }); } catch(e) {}
+            await page.waitForTimeout(5000);
+
+            process.stderr.write('Total URLs captured: ' + manifestUrls.length + '\n');
+
+            if (manifestUrls.length === 0) {
+              const html = await page.content();
+              fs.writeFileSync('/tmp/debug.html', html.substring(0, 10000));
+              process.stderr.write('No stream URL found. Saved debug.html\n');
+              await browser.close();
+              process.exit(1);
+            }
+
+            // Prefer manifest URL over videoplayback
+            const manifest = manifestUrls.find(u => u.includes('manifest.googlevideo.com')) || manifestUrls[0];
+            fs.writeFileSync('/tmp/stream_url.txt', manifest);
+            process.stderr.write('Using: ' + manifest.substring(0, 120) + '\n');
+            await browser.close();
+          })().catch(e => { process.stderr.write(e.toString()); process.exit(1); });
+          JSEOF
+          node get_stream.js
+
+      - name: Trim clip 35:00–39:00 with ffmpeg
+        run: |
+          URL=$(cat /tmp/stream_url.txt)
+          echo "URL (first 100): ${URL:0:100}"
           ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
           ls -lh clip_35-39.mp4
-
-      - name: Fallback - yt-dlp with web_embedded client
-        if: steps.cobalt.outcome == 'failure'
-        run: |
-          yt-dlp \
-            --js-runtimes node \
-            --extractor-args "youtube:player_client=web_embedded" \
-            --download-sections "*35:00-39:00" \
-            --force-keyframes-at-cuts \
-            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-            -o "clip_35-39.%(ext)s" \
-            "https://www.youtube.com/watch?v=KC5kNsHYHpM"
-          ls -lh clip_35-39.*
 
       - name: Upload clip as artifact
         uses: actions/upload-artifact@v4
