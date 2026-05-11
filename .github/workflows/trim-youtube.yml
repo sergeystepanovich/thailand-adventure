@@ -9,6 +9,8 @@ on:
 jobs:
   download-and-trim:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Install ffmpeg
         run: sudo apt-get update -q && sudo apt-get install -y ffmpeg
@@ -57,7 +59,6 @@ jobs:
             }
             await page.waitForTimeout(8000);
 
-            // Try to dismiss consent / click play
             try { await page.click('[aria-label="Accept all"]', { timeout: 2000 }); } catch(e) {}
             try { await page.click('.ytp-play-button', { timeout: 2000 }); } catch(e) {}
             await page.waitForTimeout(5000);
@@ -67,12 +68,11 @@ jobs:
             if (manifestUrls.length === 0) {
               const html = await page.content();
               fs.writeFileSync('/tmp/debug.html', html.substring(0, 10000));
-              process.stderr.write('No stream URL found. Saved debug.html\n');
+              process.stderr.write('No stream URL found.\n');
               await browser.close();
               process.exit(1);
             }
 
-            // Prefer manifest URL over videoplayback
             const manifest = manifestUrls.find(u => u.includes('manifest.googlevideo.com')) || manifestUrls[0];
             fs.writeFileSync('/tmp/stream_url.txt', manifest);
             process.stderr.write('Using: ' + manifest.substring(0, 120) + '\n');
@@ -84,13 +84,16 @@ jobs:
       - name: Trim clip 35:00–39:00 with ffmpeg
         run: |
           URL=$(cat /tmp/stream_url.txt)
-          echo "URL (first 100): ${URL:0:100}"
+          echo "URL: ${URL:0:100}..."
           ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
           ls -lh clip_35-39.mp4
 
-      - name: Upload clip as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: clip_35-39
-          path: clip_35-39.*
-          retention-days: 7
+      - name: Publish as GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete youtube-clip-35-39 --repo sergeystepanovich/thailand-adventure --yes 2>/dev/null || true
+          gh release create youtube-clip-35-39 clip_35-39.mp4 \
+            --repo sergeystepanovich/thailand-adventure \
+            --title "YouTube clip 35:00-39:00" \
+            --notes "Вырезка из KC5kNsHYHpM (35:00–39:00)"
