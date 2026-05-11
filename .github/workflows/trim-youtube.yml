@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - claude/trim-youtube-video-xHRQP
+    paths:
+      - '.github/workflows/trim-youtube.yml'
   workflow_dispatch:
 
 jobs:
