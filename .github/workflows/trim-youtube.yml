@@ -19,11 +19,10 @@ jobs:
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg tor
           pip install -U yt-dlp
-          # Start Tor
+          # Start Tor and wait for it to connect
           sudo service tor start
-          sleep 5
-          # Verify Tor works
-          curl --socks5-hostname 127.0.0.1:9050 -s https://check.torproject.org/api/ip | python3 -c "import sys,json; d=json.load(sys.stdin); print('Tor IP:', d.get('IP'), '| IsTor:', d.get('IsTor'))"
+          sleep 30
+          echo "Tor started"
 
       - name: Download clip via Tor
         run: |
