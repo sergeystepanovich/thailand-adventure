@@ -13,27 +13,17 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg
-          pip install -U yt-dlp
+          pip install -U yt-dlp bgutil-ytdlp-pot-provider
           node --version
           yt-dlp --version
 
-      - name: Download clip (35:00–39:00) via iOS client
+      - name: Download clip (35:00–39:00)
         run: |
           yt-dlp \
             --js-runtimes node \
-            --extractor-args "youtube:player_client=ios" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
             -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-            -o "clip_35-39.%(ext)s" \
-            "https://www.youtube.com/live/KC5kNsHYHpM" \
-          || \
-          yt-dlp \
-            --js-runtimes node \
-            --extractor-args "youtube:player_client=mweb" \
-            --download-sections "*35:00-39:00" \
-            --force-keyframes-at-cuts \
-            -f "best" \
             -o "clip_35-39.%(ext)s" \
             "https://www.youtube.com/live/KC5kNsHYHpM"
           ls -lh clip_35-39.*
