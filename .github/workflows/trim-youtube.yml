@@ -17,20 +17,82 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt-get update -q && sudo apt-get install -y ffmpeg tor
+          sudo apt-get update -q && sudo apt-get install -y ffmpeg
           pip install -U yt-dlp
-          # Start Tor and wait for it to connect
-          sudo service tor start
-          sleep 30
-          echo "Tor started"
 
-      - name: Download clip via Tor
+      - name: Get stream URL via Invidious / Piped API
+        id: get_url
         run: |
+          VIDEO_ID="KC5kNsHYHpM"
+
+          # Try Invidious instances
+          INVIDIOUS_INSTANCES="yewtu.be inv.nadeko.net invidious.privacydev.net invidious.nerdvpn.de iv.melmac.space"
+          for INSTANCE in $INVIDIOUS_INSTANCES; do
+            echo "Trying Invidious: $INSTANCE"
+            RESULT=$(curl -sf --max-time 20 "https://$INSTANCE/api/v1/videos/$VIDEO_ID" 2>/dev/null) || { echo "  -> curl failed"; continue; }
+            echo "$RESULT" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null || { echo "  -> invalid JSON"; continue; }
+            echo "$RESULT" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for f in d.get('formatStreams', []):
+    if 'mp4' in f.get('type','') and f.get('url'):
+        print(f['url']); sys.exit(0)
+sys.exit(1)
+" > /tmp/stream_url.txt 2>/dev/null && STREAM_URL=$(cat /tmp/stream_url.txt)
+            if [ -n "$STREAM_URL" ]; then
+              echo "Got stream URL from $INSTANCE"
+              break
+            fi
+            echo "  -> no usable stream found"
+          done
+
+          # Fallback: Piped API
+          if [ -z "$STREAM_URL" ]; then
+            echo "Trying Piped API..."
+            RESULT=$(curl -sf --max-time 20 "https://pipedapi.kavin.rocks/streams/$VIDEO_ID" 2>/dev/null) || true
+            if [ -n "$RESULT" ]; then
+              echo "$RESULT" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+streams = d.get('videoStreams', [])
+for s in sorted(streams, key=lambda x: x.get('bitrate', 0), reverse=True):
+    if s.get('mimeType','').startswith('video/mp4') and s.get('url'):
+        print(s['url']); sys.exit(0)
+sys.exit(1)
+" > /tmp/stream_url.txt 2>/dev/null && STREAM_URL=$(cat /tmp/stream_url.txt)
+              if [ -n "$STREAM_URL" ]; then
+                echo "Got stream URL from Piped"
+              fi
+            fi
+          fi
+
+          if [ -z "$STREAM_URL" ]; then
+            echo "All API sources failed"
+            exit 1
+          fi
+
+          # Write URL to file for next step (avoids shell escaping issues)
+          echo "$STREAM_URL" > /tmp/stream_url.txt
+          echo "Stream URL obtained (length=${#STREAM_URL})"
+
+      - name: Download and trim via ffmpeg
+        id: ffmpeg_download
+        continue-on-error: true
+        run: |
+          STREAM_URL=$(cat /tmp/stream_url.txt)
+          echo "Downloading segment 35:00-39:00..."
+          ffmpeg -ss 00:35:00 -to 00:39:00 -i "$STREAM_URL" -c copy clip_35-39.mp4
+          ls -lh clip_35-39.mp4
+
+      - name: Fallback - yt-dlp with tv_embedded client
+        if: steps.ffmpeg_download.outcome == 'failure'
+        run: |
+          echo "ffmpeg direct download failed, trying yt-dlp tv_embedded client..."
           yt-dlp \
-            --proxy socks5://127.0.0.1:9050 \
+            --extractor-args "youtube:player_client=tv_embedded" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
-            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+            -f "best[height<=720][ext=mp4]/best[ext=mp4]/best" \
             -o "clip_35-39.%(ext)s" \
             "https://www.youtube.com/watch?v=KC5kNsHYHpM"
           ls -lh clip_35-39.*
