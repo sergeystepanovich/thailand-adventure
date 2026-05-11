@@ -13,19 +13,41 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -q && sudo apt-get install -y ffmpeg
-          pip install -U yt-dlp bgutil-ytdlp-pot-provider
-          node --version
-          yt-dlp --version
+          pip install -U yt-dlp
 
-      - name: Download clip (35:00–39:00)
+      - name: Try cobalt.tools API → ffmpeg trim
+        id: cobalt
+        continue-on-error: true
+        run: |
+          echo "Calling cobalt.tools API..."
+          RESPONSE=$(curl -s -X POST "https://api.cobalt.tools" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"url":"https://www.youtube.com/watch?v=KC5kNsHYHpM","videoQuality":"720","filenameStyle":"basic"}' \
+            --max-time 30)
+          echo "Response: $RESPONSE"
+          STATUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','error'))" 2>/dev/null || echo "error")
+          URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('url','') or d.get('stream',''))" 2>/dev/null || echo "")
+          echo "Status=$STATUS  URL=$URL"
+          if [ -z "$URL" ] || [ "$URL" = "None" ]; then
+            echo "cobalt returned no URL, skipping"
+            exit 1
+          fi
+          echo "Downloading segment 35:00-39:00 via ffmpeg..."
+          ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
+          ls -lh clip_35-39.mp4
+
+      - name: Fallback - yt-dlp with web_embedded client
+        if: steps.cobalt.outcome == 'failure'
         run: |
           yt-dlp \
             --js-runtimes node \
+            --extractor-args "youtube:player_client=web_embedded" \
             --download-sections "*35:00-39:00" \
             --force-keyframes-at-cuts \
             -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
             -o "clip_35-39.%(ext)s" \
-            "https://www.youtube.com/live/KC5kNsHYHpM"
+            "https://www.youtube.com/watch?v=KC5kNsHYHpM"
           ls -lh clip_35-39.*
 
       - name: Upload clip as artifact
