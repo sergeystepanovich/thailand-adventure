@@ -22,18 +22,19 @@ jobs:
           npm install playwright
           npx playwright install chromium --with-deps
 
-      - name: Open YouTube with real browser, grab cookies + stream URLs
+      - name: Extract po_token + visitor_data via real Chromium
         run: |
-          cat > get_yt_data.js << 'JSEOF'
+          cat > get_pot.js << 'JSEOF'
           const { chromium } = require('./node_modules/playwright');
           const fs = require('fs');
+
+          let poToken = null, visitorData = null;
 
           (async () => {
             const browser = await chromium.launch({
               headless: true,
               args: [
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
+                '--no-sandbox', '--disable-dev-shm-usage',
                 '--disable-blink-features=AutomationControlled',
                 '--autoplay-policy=no-user-gesture-required'
               ]
@@ -47,89 +48,99 @@ jobs:
             await page.addInitScript(() => {
               Object.defineProperty(navigator, 'webdriver', { get: () => false });
               Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
-              Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
             });
 
-            const videoUrls = [];
-            page.on('response', res => {
-              const url = res.url();
-              if (url.includes('googlevideo.com')) {
-                videoUrls.push(url);
-                process.stderr.write('VIDEO URL: ' + url.substring(0, 150) + '\n');
-              }
+            // Intercept player API requests to steal po_token
+            await page.route('**/youtubei/v1/player**', async route => {
+              const req = route.request();
+              try {
+                const body = JSON.parse(req.postData() || '{}');
+                if (body?.serviceIntegrityDimensions?.poToken) {
+                  poToken = body.serviceIntegrityDimensions.poToken;
+                  process.stderr.write('po_token FOUND: ' + poToken.substring(0,40) + '...\n');
+                }
+                if (body?.context?.client?.visitorData) {
+                  visitorData = body.context.client.visitorData;
+                  process.stderr.write('visitor_data FOUND: ' + visitorData.substring(0,40) + '...\n');
+                }
+              } catch(e) {}
+              await route.continue();
             });
 
-            process.stderr.write('Navigating to YouTube...\n');
+            process.stderr.write('Loading YouTube...\n');
             await page.goto('https://www.youtube.com/watch?v=KC5kNsHYHpM', {
               waitUntil: 'domcontentloaded', timeout: 30000
             });
             await page.waitForTimeout(4000);
 
             const title = await page.title();
-            process.stderr.write('Page title: ' + title + '\n');
+            process.stderr.write('Title: ' + title + '\n');
 
-            // Dismiss consent dialogs
-            for (const sel of ['[aria-label="Accept all"]', 'button:has-text("Accept all")', 'button:has-text("I agree")']) {
-              try { await page.click(sel, { timeout: 1500 }); process.stderr.write('Clicked: ' + sel + '\n'); break; } catch(e) {}
+            for (const sel of ['[aria-label="Accept all"]', 'button:has-text("Accept all")']) {
+              try { await page.click(sel, { timeout: 1500 }); break; } catch(e) {}
             }
-            await page.waitForTimeout(3000);
+            await page.waitForTimeout(2000);
 
-            // Force video to play
-            const playResult = await page.evaluate(() => {
+            // Force play to trigger player API call
+            await page.evaluate(() => {
               const v = document.querySelector('video');
-              if (v) { v.muted = true; v.play(); return 'video found and played'; }
-              return 'no video element';
-            }).catch(e => e.message);
-            process.stderr.write('Video play: ' + playResult + '\n');
+              if (v) { v.muted = true; v.play(); }
+            }).catch(() => {});
 
-            await page.waitForTimeout(8000);
+            await page.waitForTimeout(10000);
 
-            // Save cookies for yt-dlp
+            process.stderr.write('po_token: ' + (poToken ? 'YES' : 'NO') + '\n');
+            process.stderr.write('visitor_data: ' + (visitorData ? 'YES' : 'NO') + '\n');
+
+            if (poToken) fs.writeFileSync('/tmp/po_token.txt', poToken);
+            if (visitorData) fs.writeFileSync('/tmp/visitor_data.txt', visitorData);
+
+            // Always save cookies too
             const cookies = await context.cookies();
-            let cookieFile = '# Netscape HTTP Cookie File\n';
+            let cf = '# Netscape HTTP Cookie File\n';
             for (const c of cookies) {
-              const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain;
-              cookieFile += `${domain}\tTRUE\t${c.path}\t${c.secure ? 'TRUE' : 'FALSE'}\t${c.expires > 0 ? Math.floor(c.expires) : 2147483647}\t${c.name}\t${c.value}\n`;
+              const d = c.domain.startsWith('.') ? c.domain : '.' + c.domain;
+              cf += `${d}\tTRUE\t${c.path}\t${c.secure?'TRUE':'FALSE'}\t${c.expires>0?Math.floor(c.expires):2147483647}\t${c.name}\t${c.value}\n`;
             }
-            fs.writeFileSync('/tmp/yt_cookies.txt', cookieFile);
+            fs.writeFileSync('/tmp/yt_cookies.txt', cf);
             process.stderr.write('Saved ' + cookies.length + ' cookies\n');
 
-            // Save stream URL if found
-            if (videoUrls.length > 0) {
-              const best = videoUrls.find(u => u.includes('manifest')) || videoUrls[0];
-              fs.writeFileSync('/tmp/stream_url.txt', best);
-              process.stderr.write('Stream URL saved: ' + best.substring(0,100) + '\n');
-            } else {
-              process.stderr.write('No stream URLs captured — will rely on yt-dlp + cookies\n');
-            }
-
             await browser.close();
-          })().catch(e => { process.stderr.write('JS Error: ' + e.message + '\n'); });
+          })().catch(e => process.stderr.write('Error: ' + e.message + '\n'));
           JSEOF
-          node get_yt_data.js
+          node get_pot.js
+          echo "po_token exists: $([ -f /tmp/po_token.txt ] && echo YES || echo NO)"
+          echo "visitor_data exists: $([ -f /tmp/visitor_data.txt ] && echo YES || echo NO)"
 
-      - name: Try ffmpeg with captured stream URL
-        id: ffmpeg_direct
-        continue-on-error: true
+      - name: Download and trim with yt-dlp + po_token
         run: |
-          if [ ! -f /tmp/stream_url.txt ]; then echo "No stream URL, skipping"; exit 1; fi
-          URL=$(cat /tmp/stream_url.txt)
-          echo "Stream URL: ${URL:0:100}..."
-          ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
-          ls -lh clip_35-39.mp4
+          YTDLP_ARGS="--download-sections '*35:00-39:00' --force-keyframes-at-cuts -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best' -o 'clip_35-39.%(ext)s'"
 
-      - name: Fallback - yt-dlp with browser cookies
-        if: steps.ffmpeg_direct.outcome == 'failure'
-        run: |
-          echo "Using yt-dlp with Playwright cookies..."
-          yt-dlp \
-            --cookies /tmp/yt_cookies.txt \
-            --js-runtimes node \
-            --download-sections "*35:00-39:00" \
-            --force-keyframes-at-cuts \
-            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
-            -o "clip_35-39.%(ext)s" \
-            "https://www.youtube.com/watch?v=KC5kNsHYHpM"
+          if [ -f /tmp/po_token.txt ] && [ -f /tmp/visitor_data.txt ]; then
+            PO_TOKEN=$(cat /tmp/po_token.txt)
+            VISITOR_DATA=$(cat /tmp/visitor_data.txt)
+            echo "Using po_token + visitor_data"
+            yt-dlp \
+              --po-token "web+https://www.youtube.com/+${PO_TOKEN}" \
+              --extractor-args "youtube:visitor_data=${VISITOR_DATA}" \
+              --cookies /tmp/yt_cookies.txt \
+              --js-runtimes node \
+              --download-sections "*35:00-39:00" \
+              --force-keyframes-at-cuts \
+              -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+              -o "clip_35-39.%(ext)s" \
+              "https://www.youtube.com/watch?v=KC5kNsHYHpM"
+          else
+            echo "No po_token, trying with cookies only"
+            yt-dlp \
+              --cookies /tmp/yt_cookies.txt \
+              --js-runtimes node \
+              --download-sections "*35:00-39:00" \
+              --force-keyframes-at-cuts \
+              -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+              -o "clip_35-39.%(ext)s" \
+              "https://www.youtube.com/watch?v=KC5kNsHYHpM"
+          fi
           ls -lh clip_35-39.*
 
       - name: Publish as GitHub Release
@@ -140,4 +151,4 @@ jobs:
           gh release create youtube-clip-35-39 clip_35-39.* \
             --repo sergeystepanovich/thailand-adventure \
             --title "YouTube clip 35:00-39:00" \
-            --notes "Вырезка из KC5kNsHYHpM (35:00–39:00)"
+            --notes "KC5kNsHYHpM (35:00–39:00)"
