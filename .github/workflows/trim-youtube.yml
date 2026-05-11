@@ -14,88 +14,130 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Install ffmpeg
-        run: sudo apt-get update -q && sudo apt-get install -y ffmpeg
-
-      - name: Install Playwright + Chromium
+      - name: Install dependencies
         run: |
+          sudo apt-get update -q && sudo apt-get install -y ffmpeg
+          pip install -U yt-dlp
           npm init -y
           npm install playwright
           npx playwright install chromium --with-deps
 
-      - name: Extract YouTube stream URL via real browser
+      - name: Open YouTube with real browser, grab cookies + stream URLs
         run: |
-          cat > get_stream.js << 'JSEOF'
+          cat > get_yt_data.js << 'JSEOF'
           const { chromium } = require('./node_modules/playwright');
           const fs = require('fs');
 
           (async () => {
             const browser = await chromium.launch({
               headless: true,
-              args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-blink-features=AutomationControlled']
+              args: [
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-blink-features=AutomationControlled',
+                '--autoplay-policy=no-user-gesture-required'
+              ]
             });
             const context = await browser.newContext({
               userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-              viewport: { width: 1280, height: 720 }
+              viewport: { width: 1920, height: 1080 }
             });
             const page = await context.newPage();
 
             await page.addInitScript(() => {
               Object.defineProperty(navigator, 'webdriver', { get: () => false });
+              Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5] });
+              Object.defineProperty(navigator, 'languages', { get: () => ['en-US','en'] });
             });
 
-            const manifestUrls = [];
+            const videoUrls = [];
             page.on('response', res => {
               const url = res.url();
-              if (url.includes('manifest.googlevideo.com') || url.includes('googlevideo.com/videoplayback')) {
-                manifestUrls.push(url);
-                process.stderr.write('Found: ' + url.substring(0, 120) + '\n');
+              if (url.includes('googlevideo.com')) {
+                videoUrls.push(url);
+                process.stderr.write('VIDEO URL: ' + url.substring(0, 150) + '\n');
               }
             });
 
-            process.stderr.write('Opening YouTube...\n');
-            try {
-              await page.goto('https://www.youtube.com/watch?v=KC5kNsHYHpM', { waitUntil: 'networkidle', timeout: 60000 });
-            } catch(e) {
-              process.stderr.write('Goto error: ' + e.message + '\n');
+            process.stderr.write('Navigating to YouTube...\n');
+            await page.goto('https://www.youtube.com/watch?v=KC5kNsHYHpM', {
+              waitUntil: 'domcontentloaded', timeout: 30000
+            });
+            await page.waitForTimeout(4000);
+
+            const title = await page.title();
+            process.stderr.write('Page title: ' + title + '\n');
+
+            // Dismiss consent dialogs
+            for (const sel of ['[aria-label="Accept all"]', 'button:has-text("Accept all")', 'button:has-text("I agree")']) {
+              try { await page.click(sel, { timeout: 1500 }); process.stderr.write('Clicked: ' + sel + '\n'); break; } catch(e) {}
             }
+            await page.waitForTimeout(3000);
+
+            // Force video to play
+            const playResult = await page.evaluate(() => {
+              const v = document.querySelector('video');
+              if (v) { v.muted = true; v.play(); return 'video found and played'; }
+              return 'no video element';
+            }).catch(e => e.message);
+            process.stderr.write('Video play: ' + playResult + '\n');
+
             await page.waitForTimeout(8000);
 
-            try { await page.click('[aria-label="Accept all"]', { timeout: 2000 }); } catch(e) {}
-            try { await page.click('.ytp-play-button', { timeout: 2000 }); } catch(e) {}
-            await page.waitForTimeout(5000);
+            // Save cookies for yt-dlp
+            const cookies = await context.cookies();
+            let cookieFile = '# Netscape HTTP Cookie File\n';
+            for (const c of cookies) {
+              const domain = c.domain.startsWith('.') ? c.domain : '.' + c.domain;
+              cookieFile += `${domain}\tTRUE\t${c.path}\t${c.secure ? 'TRUE' : 'FALSE'}\t${c.expires > 0 ? Math.floor(c.expires) : 2147483647}\t${c.name}\t${c.value}\n`;
+            }
+            fs.writeFileSync('/tmp/yt_cookies.txt', cookieFile);
+            process.stderr.write('Saved ' + cookies.length + ' cookies\n');
 
-            process.stderr.write('Total URLs captured: ' + manifestUrls.length + '\n');
-
-            if (manifestUrls.length === 0) {
-              const html = await page.content();
-              fs.writeFileSync('/tmp/debug.html', html.substring(0, 10000));
-              process.stderr.write('No stream URL found.\n');
-              await browser.close();
-              process.exit(1);
+            // Save stream URL if found
+            if (videoUrls.length > 0) {
+              const best = videoUrls.find(u => u.includes('manifest')) || videoUrls[0];
+              fs.writeFileSync('/tmp/stream_url.txt', best);
+              process.stderr.write('Stream URL saved: ' + best.substring(0,100) + '\n');
+            } else {
+              process.stderr.write('No stream URLs captured — will rely on yt-dlp + cookies\n');
             }
 
-            const manifest = manifestUrls.find(u => u.includes('manifest.googlevideo.com')) || manifestUrls[0];
-            fs.writeFileSync('/tmp/stream_url.txt', manifest);
-            process.stderr.write('Using: ' + manifest.substring(0, 120) + '\n');
             await browser.close();
-          })().catch(e => { process.stderr.write(e.toString()); process.exit(1); });
+          })().catch(e => { process.stderr.write('JS Error: ' + e.message + '\n'); });
           JSEOF
-          node get_stream.js
+          node get_yt_data.js
 
-      - name: Trim clip 35:00–39:00 with ffmpeg
+      - name: Try ffmpeg with captured stream URL
+        id: ffmpeg_direct
+        continue-on-error: true
         run: |
+          if [ ! -f /tmp/stream_url.txt ]; then echo "No stream URL, skipping"; exit 1; fi
           URL=$(cat /tmp/stream_url.txt)
-          echo "URL: ${URL:0:100}..."
+          echo "Stream URL: ${URL:0:100}..."
           ffmpeg -ss 00:35:00 -i "$URL" -t 00:04:00 -c copy clip_35-39.mp4
           ls -lh clip_35-39.mp4
+
+      - name: Fallback - yt-dlp with browser cookies
+        if: steps.ffmpeg_direct.outcome == 'failure'
+        run: |
+          echo "Using yt-dlp with Playwright cookies..."
+          yt-dlp \
+            --cookies /tmp/yt_cookies.txt \
+            --js-runtimes node \
+            --download-sections "*35:00-39:00" \
+            --force-keyframes-at-cuts \
+            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+            -o "clip_35-39.%(ext)s" \
+            "https://www.youtube.com/watch?v=KC5kNsHYHpM"
+          ls -lh clip_35-39.*
 
       - name: Publish as GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release delete youtube-clip-35-39 --repo sergeystepanovich/thailand-adventure --yes 2>/dev/null || true
-          gh release create youtube-clip-35-39 clip_35-39.mp4 \
+          gh release create youtube-clip-35-39 clip_35-39.* \
             --repo sergeystepanovich/thailand-adventure \
             --title "YouTube clip 35:00-39:00" \
             --notes "Вырезка из KC5kNsHYHpM (35:00–39:00)"
