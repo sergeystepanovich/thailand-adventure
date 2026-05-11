@@ -1,0 +1,30 @@
+name: Trim YouTube Video
+
+on:
+  workflow_dispatch:
+
+jobs:
+  download-and-trim:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install yt-dlp and ffmpeg
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y ffmpeg
+          pip install yt-dlp
+
+      - name: Download clip (35:00–39:00)
+        run: |
+          yt-dlp \
+            --download-sections "*35:00-39:00" \
+            --force-keyframes-at-cuts \
+            -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" \
+            -o "clip_35-39.%(ext)s" \
+            "https://www.youtube.com/live/KC5kNsHYHpM"
+          ls -lh clip_35-39.*
+
+      - name: Upload clip as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip_35-39
+          path: clip_35-39.*
+          retention-days: 7
